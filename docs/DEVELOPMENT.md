@@ -93,8 +93,11 @@ rooms as trusted-network play. Cloudflare account quotas and usage charges apply
 
 ## Cloudflare server
 
-Wrangler is already installed on this machine. On another machine run `npm ci`
-inside `server` first, then authenticate with `wrangler login`.
+Run `npm ci` inside `server` to install the project's pinned Wrangler version.
+Authenticate with `npx wrangler login` when deploying to your own account.
+The project uses the official npm registry. A temporary `sharp` 0.35.5 override
+patches Miniflare's pinned image dependency; remove it when Miniflare includes
+that fix upstream.
 
 ```sh
 cd server
@@ -105,7 +108,7 @@ Set the game's server address to `ws://127.0.0.1:8787` for local Worker testing.
 
 ```sh
 cd server
-wrangler deploy --dry-run
+npx wrangler deploy --dry-run
 npm run deploy
 ```
 
