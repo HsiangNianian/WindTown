@@ -1,0 +1,30 @@
+[package]
+name = "wind-town"
+version = "0.1.0"
+edition = "2024"
+description = "A little pixel town to walk through and talk in."
+license = "AGPL-3.0-only"
+repository = "https://github.com/HsiangNianian/WindTown"
+
+[dependencies]
+bevy = { version = "=0.18.1", default-features = false, features = [
+  "std", "async_executor", "multi_threaded", "bevy_asset", "bevy_log",
+  "bevy_winit", "bevy_window", "bevy_render", "bevy_core_pipeline",
+  "bevy_sprite", "bevy_sprite_render", "bevy_text", "bevy_ui", "bevy_ui_render",
+  "png", "x11", "wayland", "keyboard", "mouse"
+] }
+bevy_ecs_tilemap = "=0.18.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tungstenite = { version = "0.28", features = ["native-tls"] }
+native-tls = "0.2"
+url = "2"
+rand = "0.9"
+arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"] }
+
+[profile.dev]
+opt-level = 1
+debug = 0
+
+[profile.dev.package."*"]
+opt-level = 2

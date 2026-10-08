@@ -1,0 +1,224 @@
+//! Opt-in GPU acceptance run. Input goes through game systems, never the desktop.
+use crate::{
+    Session,
+    game::Actor,
+    ui::{Action, Menu, Page},
+};
+use bevy::{
+    input::{
+        ButtonState,
+        keyboard::{Key, KeyboardInput},
+    },
+    prelude::*,
+    render::view::screenshot::{Screenshot, save_to_disk},
+};
+
+#[derive(Resource)]
+pub struct Smoke {
+    mode: String,
+    stage: u8,
+    since: f32,
+    start_x: f32,
+    room: usize,
+}
+impl Default for Smoke {
+    fn default() -> Self {
+        Self {
+            mode: std::env::var("WIND_TOWN_SMOKE").unwrap_or_default(),
+            stage: 0,
+            since: 0.0,
+            start_x: 0.0,
+            room: 0,
+        }
+    }
+}
+
+pub fn drive(
+    mut commands: Commands,
+    mut smoke: ResMut<Smoke>,
+    time: Res<Time>,
+    mut menu: ResMut<Menu>,
+    session: Res<Session>,
+    actors: Query<&Actor>,
+    mut buttons: Query<(&Action, &mut Interaction)>,
+    mut keyboard: MessageWriter<KeyboardInput>,
+    window: Single<Entity, With<Window>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if smoke.mode.is_empty() {
+        return;
+    }
+    let now = time.elapsed_secs();
+    assert!(
+        now < 90.0,
+        "GPU smoke timed out in stage {}: {}",
+        smoke.stage,
+        menu.status
+    );
+    let host = smoke.mode.starts_with("host");
+    let cloud = smoke.mode.ends_with("cloud");
+    let name = if host { "Rowan" } else { "June" };
+    let mine = actors.iter().find(|a| Some(a.player.id) == session.you);
+    let capture = |commands: &mut Commands, mode: &str, tag: &str| {
+        std::fs::create_dir_all("artifacts").unwrap();
+        commands
+            .spawn(Screenshot::primary_window())
+            .observe(save_to_disk(format!("artifacts/{mode}-{tag}.png")));
+    };
+    let key =
+        |keyboard: &mut MessageWriter<KeyboardInput>, key_code, logical_key, text, pressed| {
+            keyboard.write(KeyboardInput {
+                key_code,
+                logical_key,
+                text,
+                state: if pressed {
+                    ButtonState::Pressed
+                } else {
+                    ButtonState::Released
+                },
+                repeat: false,
+                window: *window,
+            });
+        };
+    let mut action = None;
+    let advance = match smoke.stage {
+        0 if now > 3.0 => {
+            capture(&mut commands, &smoke.mode, "menu");
+            menu.name = name.into();
+            menu.room_name = "Sunset Club".into();
+            action = Some(Action::Go(if host {
+                Page::Host
+            } else if cloud {
+                Page::Cloud
+            } else {
+                Page::Lan
+            }));
+            true
+        }
+        1 if now - smoke.since > 0.5 => {
+            if host {
+                action = Some(Action::Hosting(cloud));
+                true
+            } else if let Some(index) = menu
+                .rooms
+                .iter()
+                .position(|r| r.name == if cloud { "Sunset Club" } else { "Rowan" })
+            {
+                smoke.room = index;
+                capture(&mut commands, &smoke.mode, "lobby");
+                true
+            } else {
+                false
+            }
+        }
+        2 if now - smoke.since > 0.8 => {
+            if host {
+                capture(&mut commands, &smoke.mode, "host");
+            }
+            action = Some(if host {
+                Action::Connect
+            } else {
+                Action::JoinRoom(smoke.room)
+            });
+            true
+        }
+        3 if session.connected && actors.iter().count() >= 2 => {
+            smoke.start_x = mine.unwrap().position.x;
+            let (code, letter) = if host {
+                (KeyCode::KeyD, "d")
+            } else {
+                (KeyCode::KeyA, "a")
+            };
+            key(
+                &mut keyboard,
+                code,
+                Key::Character(letter.into()),
+                None,
+                true,
+            );
+            key(&mut keyboard, KeyCode::Space, Key::Space, None, true);
+            true
+        }
+        4 if now - smoke.since > 1.5 => {
+            let moved = (mine.unwrap().position.x - smoke.start_x).abs();
+            assert!(moved > 40.0, "Real keyboard movement failed: {moved}");
+            info!("GPU SMOKE {} walked {:.1} world pixels", smoke.mode, moved);
+            let (code, letter) = if host {
+                (KeyCode::KeyD, "d")
+            } else {
+                (KeyCode::KeyA, "a")
+            };
+            key(
+                &mut keyboard,
+                code,
+                Key::Character(letter.into()),
+                None,
+                false,
+            );
+            key(&mut keyboard, KeyCode::Space, Key::Space, None, false);
+            key(&mut keyboard, KeyCode::Enter, Key::Enter, None, true);
+            true
+        }
+        5 if now - smoke.since > 0.25 => {
+            key(&mut keyboard, KeyCode::Enter, Key::Enter, None, false);
+            key(
+                &mut keyboard,
+                KeyCode::KeyH,
+                Key::Character("h".into()),
+                Some(format!("Hello from {name}!").into()),
+                true,
+            );
+            true
+        }
+        6 if now - smoke.since > 0.25 => {
+            key(
+                &mut keyboard,
+                KeyCode::KeyH,
+                Key::Character("h".into()),
+                None,
+                false,
+            );
+            key(&mut keyboard, KeyCode::Enter, Key::Enter, None, true);
+            true
+        }
+        7 if now - smoke.since > 1.0
+            && ["Hello from Rowan!", "Hello from June!"]
+                .iter()
+                .all(|s| session.log.iter().any(|line| line.contains(s))) =>
+        {
+            capture(&mut commands, &smoke.mode, "chat");
+            info!(
+                "GPU SMOKE {} PASS: lobby join, walking, chat received by both players",
+                smoke.mode
+            );
+            true
+        }
+        8 if now - smoke.since > 3.0 => {
+            exit.write(AppExit::Success);
+            true
+        }
+        _ => false,
+    };
+    if let Some(action) = action {
+        let mut found = false;
+        for (candidate, mut interaction) in &mut buttons {
+            let matches = match (candidate, action) {
+                (Action::Go(a), Action::Go(b)) => *a == b,
+                (Action::Hosting(a), Action::Hosting(b)) => *a == b,
+                (Action::Connect, Action::Connect) => true,
+                (Action::JoinRoom(a), Action::JoinRoom(b)) => *a == b,
+                _ => false,
+            };
+            if matches {
+                *interaction = Interaction::Pressed;
+                found = true;
+                break;
+            }
+        }
+        assert!(found, "Expected menu button is missing");
+    }
+    if advance {
+        smoke.stage += 1;
+        smoke.since = now;
+    }
+}

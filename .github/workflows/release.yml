@@ -1,0 +1,178 @@
+name: Release game
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Different tags must never replace each other's pending runs.
+# Changelog writes handle concurrent default-branch updates with retries.
+concurrency:
+  group: wind-town-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    outputs:
+      previous-ref: ${{ steps.range.outputs.previous-ref }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Validate release tag and committed project versions
+        run: |
+          node --test .github/scripts/*.test.mjs
+          node .github/scripts/validate-release.mjs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Resolve changelog range
+        id: range
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # Explicit range also supports rerunning an older tag.
+          previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$RELEASE_TAG^" 2>/dev/null || true)
+          if [ -z "$previous" ]; then
+            # The first release includes changes after the repository bootstrap commit.
+            previous=$(git rev-list --max-parents=0 "$RELEASE_TAG" | head -n 1)
+          fi
+          echo "previous-ref=$previous" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: validate
+    uses: ./.github/workflows/checks.yml
+
+  build:
+    name: Build release archives
+    needs: validate
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish release and changelog
+    needs: [validate, checks, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Scripts must come from the triggering tag, even if it is on dev.
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Checkout changelog branch separately
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          path: changelog-repo
+
+      - name: Read current changelog
+        run: |
+          if [ -f changelog-repo/CHANGELOG.md ]; then
+            cp changelog-repo/CHANGELOG.md CHANGELOG.md
+          fi
+
+      - name: Check whether this release is already published
+        id: published
+        uses: actions/github-script@v8
+        with:
+          script: |
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({
+                ...context.repo, tag: context.ref.replace('refs/tags/', '')
+              });
+              core.setOutput('exists', !data.draft);
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              core.setOutput('exists', false);
+            }
+
+      - name: Check whether changelog already contains this version
+        id: existing
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [ -f CHANGELOG.md ] && grep -Fq "## [$RELEASE_TAG] - " CHANGELOG.md; then
+            echo "write=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "write=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate changelog from Conventional Commits
+        id: changelog
+        if: steps.published.outputs.exists != 'true'
+        uses: requarks/changelog-action@v1
+        with:
+          token: ${{ github.token }}
+          fromTag: ${{ github.ref_name }}
+          toTag: ${{ needs.validate.outputs.previous-ref }}
+          includeInvalidCommits: true
+          excludeTypes: ""
+          changelogFilePath: CHANGELOG.md
+          writeToFile: ${{ steps.existing.outputs.write }}
+          useGitmojis: false
+
+      - name: Download all platform archives
+        if: steps.published.outputs.exists != 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: wind-town-*
+          path: release-assets
+
+      - name: Validate local release assets
+        if: steps.published.outputs.exists != 'true'
+        run: node .github/scripts/release-assets.mjs
+
+      # Always keep new/existing drafts private while replacing assets.
+      # A successful published release is never changed by a retry.
+      - name: Upload assets to draft release
+        id: upload
+        if: steps.published.outputs.exists != 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.changes }}
+          artifacts: "release-assets/**/*.tar.gz,release-assets/**/*.zip,release-assets/SHA256SUMS,CHANGELOG.md"
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          skipIfReleaseExists: true
+          updateOnlyUnreleased: true
+          draft: true
+          prerelease: false
+          makeLatest: false
+          token: ${{ github.token }}
+
+      - name: Verify uploaded assets and publish
+        if: steps.published.outputs.exists != 'true'
+        uses: actions/github-script@v8
+        env:
+          RELEASE_ID: ${{ steps.upload.outputs.id }}
+        with:
+          script: |
+            const { publishDraft } = await import(
+              `file://${process.env.GITHUB_WORKSPACE}/.github/scripts/release-assets.mjs`
+            );
+            await publishDraft(github, context.repo, context.ref.replace('refs/tags/', ''), Number(process.env.RELEASE_ID));
+
+      - name: Restore the published changelog on retry
+        if: steps.published.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release download "$RELEASE_TAG" --pattern CHANGELOG.md --clobber
+
+      - name: Commit changelog to the default branch
+        run: node .github/scripts/commit-changelog.mjs
+        env:
+          CHANGELOG_REPO: changelog-repo
+          CHANGELOG_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_TAG: ${{ github.ref_name }}

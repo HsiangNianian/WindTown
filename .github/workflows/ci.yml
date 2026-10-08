@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml
+  build:
+    uses: ./.github/workflows/build.yml

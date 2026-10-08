@@ -1,0 +1,14 @@
+{
+  "name": "wind-town-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "test": "node test/rooms.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.107.0"
+  },
+  "version": "0.1.0"
+}

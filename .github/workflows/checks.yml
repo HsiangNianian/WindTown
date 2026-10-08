@@ -1,0 +1,55 @@
+name: Project checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Validate formatting and committed versions
+        run: |
+          cargo fmt --all -- --check
+          node .github/scripts/validate-release.mjs
+          cargo metadata --no-deps --locked --format-version 1 > /dev/null
+      - name: Test packaging and release recovery
+        run: |
+          node --test .github/scripts/*.test.mjs
+          python -m unittest discover -s tools -p 'test_*.py'
+      - name: Lint GitHub Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo rhysd/actionlint --pattern '*linux_amd64.tar.gz' --dir /tmp/actionlint
+          tar -xzf /tmp/actionlint/actionlint_*_linux_amd64.tar.gz -C /tmp/actionlint
+          /tmp/actionlint/actionlint -color
+      - name: Install Worker dependencies
+        run: npm ci --prefix server
+      - name: Test Worker rooms and lobby
+        run: |
+          cd server
+          npm run dev > /tmp/wind-town-worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" || true; cat /tmp/wind-town-worker.log' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:8787/health; then break; fi
+            sleep 1
+          done
+          npm test
+          npx wrangler deploy --dry-run
