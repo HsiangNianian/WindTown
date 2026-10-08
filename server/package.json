@@ -8,7 +8,7 @@
     "test": "node test/rooms.mjs"
   },
   "devDependencies": {
-    "wrangler": "4.107.0"
+    "wrangler": "4.148.0"
   },
   "version": "0.1.0"
 }
