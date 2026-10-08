@@ -180,6 +180,71 @@ Native GPU gameplay is verified on Linux. GitHub Actions builds and tests Window
 Linux, and both macOS architectures. GUI play on Windows/macOS and sessions between
 two separate physical LAN machines still need manual verification.
 
+## Cross-platform CI
+
+The workflow layout follows [IntelligentMixVideo](https://github.com/HsiangNianian/IntelligentMixVideo):
+a reusable build matrix, separate checks, and a tag-triggered release workflow.
+
+| Event | Result |
+| --- | --- |
+| Main branch push / pull request | Project checks, native tests and four platform archives |
+| Documentation-only push / PR | Build skipped |
+| Manual **CI** | Full checks and four platform archives |
+| Manual **Build game** | Four platform archives |
+| `vX.Y.Z` tag | Version checks, tests, four platform archives, verified Release and CHANGELOG update |
+
+All builds use lockfiles. Actions artifacts are retained for 14 days. Both CI and
+releases call the same build workflow; release binaries come from the tagged
+commit. Normal jobs use read permissions; only the release publishing job can
+write repository contents.
+
+Local checks:
+
+```sh
+cargo fmt --all -- --check
+cargo test --locked
+node --test .github/scripts/*.test.mjs
+python3 -m unittest discover -s tools -p 'test_*.py'
+# With a local Worker already running:
+npm test --prefix server
+```
+
+## Releases and changelog
+
+Game and Worker versions move together. Prepare a version from the repository
+root, review the diff, and commit it before tagging:
+
+```sh
+RELEASE_TAG=v0.1.0 node .github/scripts/validate-release.mjs --write
+node .github/scripts/validate-release.mjs
+git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
+git commit -m "chore: prepare v0.1.0"
+# Once the release commit is on main:
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin main v0.1.0
+```
+
+For an unchanged first version, skip the empty version commit. PowerShell users
+can set `$env:RELEASE_TAG = "v0.1.0"` before running the same Node command.
+Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
+it never changes source versions during a release.
+
+[`release.yml`](../.github/workflows/release.yml) generates notes from Conventional
+Commits using the same changelog action as IntelligentMixVideo. The range runs
+from the preceding ancestor version tag to the new tag. The first release uses
+the empty repository bootstrap commit as its baseline.
+
+After every build succeeds, the workflow uploads the four archives,
+`SHA256SUMS`, and `CHANGELOG.md` to a **draft**. It verifies the uploaded names,
+sizes and available digests before publishing. Release Notes and the changelog
+entry come from the same generated changes. Then a bot merges that entry into
+the latest default branch, preserving concurrent edits and existing releases.
+
+Failed drafts can be retried. Published releases remain unchanged; a retry can
+repair changelog writeback using the already published attachment. No personal
+token is required: the built-in `GITHUB_TOKEN` handles publishing. Branch rules
+must allow its changelog commit. Tagged releases do not deploy the Worker.
+
 ## License
 
 Project code and original artwork: [AGPL-3.0-only](../LICENSE.md).

@@ -1,72 +1,137 @@
-# Wind Town
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-dark.svg">
+    <img src="docs/readme/banner.svg" alt="Wind Town — a quiet street, a few good friends." width="960">
+  </picture>
+</p>
 
-> A little pixel town to walk through, meet your friends, and press Enter to talk.
+<h1 align="center">Wind Town</h1>
 
-[![CI](https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml/badge.svg)](https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/HsiangNianian/WindTown)](https://github.com/HsiangNianian/WindTown/releases)
-[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE.md)
+<p align="center">
+  <strong>A little town. A little company.</strong><br>
+  Walk down a pixel street, find your friends, and press Enter to say hello.
+</p>
 
-![Two players chatting in Wind Town](docs/screenshots/town.png)
+<p align="center">
+  <a href="https://github.com/HsiangNianian/WindTown/releases/latest"><img src="https://img.shields.io/github/v/release/HsiangNianian/WindTown?style=flat-square&amp;color=3f6654&amp;label=download" alt="Download the latest release"></a>
+  <a href="https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml"><img src="https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml/badge.svg" alt="Cross-platform CI"></a>
+  <a href="https://github.com/HsiangNianian/WindTown/releases"><img src="https://img.shields.io/badge/play-Windows%20%2F%20Linux%20%2F%20macOS-7c8060?style=flat-square" alt="Windows, Linux, and macOS"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-3f6654?style=flat-square" alt="AGPL-3.0-only license"></a>
+</p>
 
-A native **Rust + Bevy** multiplayer game with original pixel art, a scrolling
-street, animated characters, and speech bubbles. The interface is entirely
-English and the pixel font ships with the game.
+<p align="center">
+  <a href="#download-and-play">Download</a> ·
+  <a href="#meet-me-in-town">Play together</a> ·
+  <a href="#controls">Controls</a> ·
+  <a href="docs/DEVELOPMENT.md">Development</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
-## Play together
+---
 
-- **Host a room** — choose Local network or Online server. For public online
-  play, enter a **room name** and start; the server is already configured.
-- **Join LAN** — nearby rooms appear automatically. Click one to join, or enter
-  an IP address and port manually.
-- **Join server** — browse named public rooms, or enter a room code. A manual
-  server address remains available for connecting to your own deployment.
-- Lobbies refresh every eight seconds and show player counts. Rooms support up
-  to 16 players. Use **Copy invite** to share a room code or LAN address.
+## A quiet street, a few good friends
 
-![Public room hosting asks for a room name](docs/screenshots/host.png)
+**Wind Town** is a small native multiplayer game built with **Rust and Bevy**.
+Walk past the coffee shop, run and jump along the street, or stop for a chat.
+Animated pixel characters, drifting clouds, warm windows, and speech bubbles
+make a place to spend a little time together.
+
+<p align="center">
+  <img src="docs/screenshots/town.png" alt="Two players walking and chatting outside the Wind Town coffee shop" width="960">
+</p>
+
+## Download and play
+
+**[Get the latest release](https://github.com/HsiangNianian/WindTown/releases/latest)** —
+download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
+account are not needed to play.
+
+| Platform | Download v0.1.0 | After extracting |
+| --- | --- | --- |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-windows-x64.zip) | Open `wind-town.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-linux-x64.tar.gz) | Run `./wind-town` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-macos-arm64.tar.gz) | Open `Wind Town.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-macos-x64.tar.gz) | Open `Wind Town.app` |
+
+Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
+executable; on macOS, the assets are inside the app. The interface is in English
+and the pixel font is included. Every release also includes `SHA256SUMS` and
+`CHANGELOG.md`, with matching Release Notes.
+
+<details>
+<summary><strong>Platform notes</strong></summary>
+
+- **Linux:** builds target Ubuntu 22.04 or newer, with OpenSSL 3 and the usual
+  X11/Wayland desktop libraries. A graphics driver supported by Bevy is required.
+- **Windows / macOS:** builds are currently unsigned; macOS builds are not
+  notarized. Your operating system may ask you to approve opening the app.
+- Native GPU play and fullscreen switching have been checked on Linux.
+  CI builds and runs code tests on all four targets; Windows/macOS GUI play and
+  LAN sessions between two physical computers still need manual verification.
+
+</details>
+
+## Meet me in town
+
+1. **Host a room.** Enter a nickname and choose **Local network** or **Online
+   server**. Online hosting only asks for a **room name**; the public server is
+   already configured. Use **Copy invite** to share the LAN address or room code.
+2. **Join LAN.** Rooms on the same network appear automatically. Click one to
+   join, or enter an address and port yourself.
+3. **Join server.** Browse named public rooms or enter an invite code. You can
+   also enter a server address to connect to your own deployment.
+
+Lobbies refresh every eight seconds and show player counts. Each room holds up
+to **16 players**. Press **Enter** to chat; messages appear above your character
+and in the recent chat log. Movement pauses while you type.
+
+<details>
+<summary><strong>A look at hosting and the lobby</strong></summary>
+
+<p align="center">
+  <img src="docs/screenshots/host.png" alt="Online hosting asks for a room name and uses the built-in public server" width="960">
+</p>
+<p align="center">
+  <img src="docs/screenshots/lobby.png" alt="The online lobby lists room names and player counts, with manual connection available" width="960">
+</p>
+
+</details>
+
+Rooms are public, without accounts or passwords. LAN discovery needs the same
+broadcast network; use a manual address when discovery is blocked. The demo
+server supports up to 40 rooms. See the [networking guide](docs/DEVELOPMENT.md#networking)
+for room lifetimes, ports, proxies, and connection limits.
+
+## Controls
 
 | Key | Action |
 | --- | --- |
-| A / D or arrow keys | Walk |
+| A / D or Left / Right | Walk |
 | Shift | Run |
 | Space | Jump |
 | Enter | Open chat / send |
-| Escape | Close chat or leave the room |
-| F11 / F12 | Toggle window / fullscreen; save screenshot |
+| Escape | Close chat, unfocus a field, or leave the room |
+| Tab | Next input field |
+| Ctrl+A / Ctrl+V / Ctrl+C | Select, paste, or copy in an input |
+| F11 | Switch between the fixed window and fullscreen |
+| F12 | Save a screenshot under `artifacts/` |
 
-The window stays at **1440 × 810**. Press **F11** to switch to fullscreen or back.
-The scene and interface scale together in whole pixels, with centered borders
-when the display size does not fit exactly.
+Windowed mode stays at **1440 × 810**. Fullscreen keeps the scene and interface
+at the same scale, with centered borders when needed to preserve crisp pixels.
 
-## Download
+## Build from source
 
-Get published builds from [Releases](https://github.com/HsiangNianian/WindTown/releases).
-Before the first tagged release, development builds are available in the latest
-successful [CI run](https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml)
-under **Artifacts** (GitHub sign-in required).
+Install **Rust stable**. Windows also needs the MSVC C++ build tools; macOS needs
+Xcode Command Line Tools.
 
-| Platform | Architecture | Archive |
-| --- | --- | --- |
-| Windows | x64 | `.zip` containing `wind-town.exe` and `assets/` |
-| Linux | x64 | `.tar.gz` containing `wind-town` and `assets/` |
-| macOS | Apple Silicon | `.tar.gz` containing `Wind Town.app` |
-| macOS | Intel | `.tar.gz` containing `Wind Town.app` |
-
-Extract the **entire** archive before launching. Keep the asset folder with the
-executable. Linux builds target Ubuntu 22.04 or newer and require OpenSSL 3 and
-the usual X11/Wayland desktop libraries. Windows signing and macOS notarization
-are not configured, so the operating system may show an unsigned-app warning.
-GitHub Releases include `SHA256SUMS` and the generated `CHANGELOG.md`.
-
-## Build and run
-
-Install Rust stable. Linux build dependencies on Ubuntu:
+<details>
+<summary><strong>Linux build dependencies (Ubuntu)</strong></summary>
 
 ```sh
 sudo apt-get install build-essential pkg-config libssl-dev libx11-dev libxrandr-dev libxi-dev libxcursor-dev libxkbcommon-dev libwayland-dev libudev-dev
 ```
 
-Windows needs the MSVC C++ build tools; macOS needs Xcode Command Line Tools.
+</details>
 
 ```sh
 git clone https://github.com/HsiangNianian/WindTown.git
@@ -74,120 +139,54 @@ cd WindTown
 cargo run --locked
 ```
 
-The first build compiles Bevy and can take a while. No Node.js or Cloudflare
-account is needed to run the game or host a LAN room.
+The first build compiles Bevy and can take a while. Checked-in artwork and fonts
+are ready to use. No server setup is needed for the built-in online service or
+for hosting a LAN room.
 
-## Structure
+## Made with pixels
 
-| Path | Responsibility |
-| --- | --- |
-| `src/` | Bevy game, English UI, movement, chat, LAN/WebSocket client and host |
-| `assets/` | Original pixel art, bundled font and default public server |
-| `server/` | Cloudflare Worker, room and lobby Durable Objects, integration tests |
-| `tools/` | Artwork generator and portable release packaging |
-| `.github/` | Cross-platform CI, release validation and changelog automation |
+- **Rust · Bevy 0.18.1 · bevy_ecs_tilemap** — a 480 × 270 world, integer pixel
+  scaling, original sprites and tiles, and layered scenery.
+- **Fusion Pixel Font** — a bundled bitmap-style font for menus, chat, and
+  speech bubbles.
+- **WebSockets · Cloudflare Workers · Durable Objects** — the same game protocol
+  for local rooms and online play, with a shared online lobby and a separate
+  Durable Object for each online room.
 
-## Cloudflare server
+Want to host your own online service? The Worker lives in `server/`. Follow the
+[server setup guide](docs/DEVELOPMENT.md#cloudflare-server); players can connect
+through **Join server**. Set `assets/server-url.txt` when building a client that
+hosts on your deployment by default.
 
-The public server is configured in `assets/server-url.txt`. Online rooms run in
-separate Durable Objects with hibernating WebSockets; the lobby lists active
-rooms. To run your own server:
+## Development and contributions
 
-```sh
-cd server
-npm ci
-npm run dev
-# After testing locally:
-npx wrangler login
-npm run deploy
-```
-
-Use `ws://127.0.0.1:8787` in **Join server** for local Worker testing. For a custom
-build that hosts on your server, change `assets/server-url.txt` before compiling.
-CI tests the Worker locally and performs a deployment dry run; it does not
-deploy to your Cloudflare account or need a Cloudflare token.
-
-LAN discovery uses UDP 4762; the default game port is TCP 4761. Discovery works
-within the same broadcast network. Manual addresses remain useful for VPNs and
-networks that block discovery. See [networking and development details](docs/DEVELOPMENT.md).
-
-## Cross-platform CI
-
-The workflow layout follows [IntelligentMixVideo](https://github.com/HsiangNianian/IntelligentMixVideo):
-a reusable build matrix, separate checks, and a tag-triggered release workflow.
-
-| Event | Result |
-| --- | --- |
-| Main branch push / pull request | Project checks, native tests and four platform archives |
-| Documentation-only push / PR | Build skipped |
-| Manual **CI** | Full checks and four platform archives |
-| Manual **Build game** | Four platform archives |
-| `vX.Y.Z` tag | Version checks, tests, four platform archives, verified Release and CHANGELOG update |
-
-All builds use lockfiles. Actions artifacts are retained for 14 days. Both CI and
-releases call the same build workflow; release binaries come from the tagged
-commit. Normal jobs use read permissions; only the release publishing job can
-write repository contents.
-
-Local checks:
+Bug reports, gameplay improvements, pixel art, and documentation are welcome.
+For connection issues, include the platform, LAN or online mode, and steps to
+reproduce. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```sh
 cargo fmt --all -- --check
 cargo test --locked
 node --test .github/scripts/*.test.mjs
 python3 -m unittest discover -s tools -p 'test_*.py'
-# With a local Worker already running:
-npm test --prefix server
 ```
 
-## Releases and changelog
+CI tests and packages all four platforms. Version tags publish the same builds
+to GitHub Releases after checks pass, then update the changelog from the same
+Conventional Commits used for Release Notes.
 
-Game and Worker versions move together. Prepare a version from the repository
-root, review the diff, and commit it before tagging:
+| Looking for | Start here |
+| --- | --- |
+| Local development, networking, or your own server | [Development guide](docs/DEVELOPMENT.md) |
+| Real game, movement, chat, and display checks | [GPU acceptance](docs/DEVELOPMENT.md#gpu-acceptance-and-artwork) |
+| Build matrix and release automation | [CI](docs/DEVELOPMENT.md#cross-platform-ci) · [Releasing](docs/DEVELOPMENT.md#releases-and-changelog) |
+| Report a bug or propose a change | [Issues](https://github.com/HsiangNianian/WindTown/issues) · [Contributing](CONTRIBUTING.md) |
+| What changed | [Changelog](CHANGELOG.md) · [Releases](https://github.com/HsiangNianian/WindTown/releases) |
 
-```sh
-RELEASE_TAG=v0.1.0 node .github/scripts/validate-release.mjs --write
-node .github/scripts/validate-release.mjs
-git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
-git commit -m "chore: prepare v0.1.0"
-# Once the release commit is on main:
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin main v0.1.0
-```
+## License
 
-For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.1.0"` before running the same Node command.
-Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
-it never changes source versions during a release.
+Code and original artwork are licensed under **AGPL-3.0-only**; see
+[LICENSE.md](LICENSE.md). [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font)
+retains its own license and upstream notices in [`assets/fonts/`](assets/fonts/).
 
-[`release.yml`](.github/workflows/release.yml) generates notes from Conventional
-Commits using the same changelog action as IntelligentMixVideo. The range runs
-from the preceding ancestor version tag to the new tag. The first release uses
-the empty repository bootstrap commit as its baseline.
-
-After every build succeeds, the workflow uploads the four archives,
-`SHA256SUMS`, and `CHANGELOG.md` to a **draft**. It verifies the uploaded names,
-sizes and available digests before publishing. Release Notes and the changelog
-entry come from the same generated changes. Then a bot merges that entry into
-the latest default branch, preserving concurrent edits and existing releases.
-
-Failed drafts can be retried. Published releases remain unchanged; a retry can
-repair changelog writeback using the already published attachment. No personal
-token is required: the built-in `GITHUB_TOKEN` handles publishing. Branch rules
-must allow its changelog commit. Tagged releases do not deploy the Worker.
-
-## Contributing and license
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Use English Conventional Commits and keep
-gameplay, protocol tests, and documentation aligned.
-
-Project code and original artwork are licensed **AGPL-3.0-only**; see
-[LICENSE.md](LICENSE.md). The bundled
-[Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font) retains its
-own license and upstream notices in [`assets/fonts/`](assets/fonts/).
-
-Rooms are public social spaces without accounts or passwords. Movement is
-client-driven; this is not a competitive game. The demo lobby supports up to
-40 rooms, and Cloudflare quotas and usage charges apply. Native GUI play is
-currently verified on Linux; Windows/macOS play and LAN sessions across two
-physical computers still need manual verification.
+<p align="center"><sub>SLOW DOWN. SAY HELLO.</sub></p>
