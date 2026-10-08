@@ -1128,7 +1128,7 @@ pub fn render(
         &mut commands,
         footer,
         &art,
-        "TAB NEXT FIELD  /  CTRL+V PASTE  /  F11 FULLSCREEN",
+        "TAB NEXT FIELD  /  CTRL+V PASTE  /  F11 WINDOW / FULLSCREEN",
         16.0,
         CREAM,
     );

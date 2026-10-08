@@ -4,7 +4,7 @@ use crate::{
     ui::{Chat, Menu, Page},
 };
 use bevy::{
-    camera::{RenderTarget, visibility::RenderLayers},
+    camera::{RenderTarget, Viewport, visibility::RenderLayers},
     prelude::*,
     render::{
         render_resource::{
@@ -19,6 +19,7 @@ use bevy_ecs_tilemap::prelude::*;
 
 pub const WIDTH: f32 = 480.0;
 pub const HEIGHT: f32 = 270.0;
+pub const WINDOW_SIZE: UVec2 = UVec2::new(1440, 810);
 
 #[derive(Resource)]
 pub struct Art {
@@ -452,19 +453,26 @@ pub fn bubbles(
 
 pub fn fit_window(
     window: Single<&Window>,
-    mut camera: Single<&mut Projection, With<OuterCamera>>,
+    mut camera: Single<(&mut Camera, &mut Projection), With<OuterCamera>>,
     mut ui_scale: ResMut<UiScale>,
 ) {
-    if let Projection::Orthographic(p) = &mut **camera {
-        let scale = (window.physical_width() as f32 / WIDTH)
-            .min(window.physical_height() as f32 / HEIGHT)
-            .floor()
-            .max(1.0);
+    let available = window.physical_size();
+    if available.min_element() == 0 {
+        return;
+    }
+    let fit = (available.as_vec2() / Vec2::new(WIDTH, HEIGHT)).min_element();
+    let scale = fit.floor().max(1.0).min(fit);
+    let size = (Vec2::new(WIDTH, HEIGHT) * scale).as_uvec2();
+    // The UI and pixel canvas share one centered viewport, including on HiDPI displays.
+    camera.0.viewport = Some(Viewport {
+        physical_position: (available - size) / 2,
+        physical_size: size,
+        ..default()
+    });
+    if let Projection::Orthographic(p) = &mut *camera.1 {
         p.scale = window.scale_factor() / scale;
     }
-    ui_scale.0 = (window.width() / 1440.0)
-        .min(window.height() / 810.0)
-        .clamp(0.5, 2.0);
+    ui_scale.0 = size.x as f32 / WINDOW_SIZE.x as f32 / window.scale_factor();
 }
 
 pub fn capture(
@@ -477,6 +485,9 @@ pub fn capture(
         window.mode = if window.mode == WindowMode::Windowed {
             WindowMode::BorderlessFullscreen(MonitorSelection::Current)
         } else {
+            window
+                .resolution
+                .set(WINDOW_SIZE.x as f32, WINDOW_SIZE.y as f32);
             WindowMode::Windowed
         };
     }
@@ -498,6 +509,53 @@ pub fn capture(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn scene_and_ui_share_the_same_viewport_across_display_sizes() {
+        let mut app = App::new();
+        app.init_resource::<UiScale>()
+            .add_systems(Update, fit_window);
+        let window = app.world_mut().spawn(Window::default()).id();
+        let camera = app
+            .world_mut()
+            .spawn((
+                Camera::default(),
+                Projection::Orthographic(OrthographicProjection::default_2d()),
+                OuterCamera,
+            ))
+            .id();
+        for (width, height, dpi, size, position) in [
+            (1440, 810, 1.0, (1440, 810), (0, 0)),
+            (2560, 1440, 1.0, (2400, 1350), (80, 45)),
+            (3440, 1440, 1.0, (2400, 1350), (520, 45)),
+            (1080, 2560, 1.0, (960, 540), (60, 1010)),
+            (3840, 2160, 2.0, (3840, 2160), (0, 0)),
+            (2160, 1215, 1.5, (1920, 1080), (120, 67)),
+            (320, 180, 1.0, (320, 180), (0, 0)),
+        ] {
+            let mut w = app.world_mut().get_mut::<Window>(window).unwrap();
+            w.resolution.set_scale_factor(dpi);
+            w.resolution.set_physical_resolution(width, height);
+            app.update();
+            let viewport = app
+                .world()
+                .get::<Camera>(camera)
+                .unwrap()
+                .viewport
+                .as_ref()
+                .unwrap();
+            assert_eq!(viewport.physical_size, UVec2::from(size));
+            assert_eq!(viewport.physical_position, UVec2::from(position));
+            let ui_size =
+                viewport.physical_size.as_vec2() / (dpi * app.world().resource::<UiScale>().0);
+            assert!((ui_size - WINDOW_SIZE.as_vec2()).length() < 0.01);
+            let Projection::Orthographic(p) = app.world().get::<Projection>(camera).unwrap() else {
+                panic!("Expected orthographic camera");
+            };
+            let scene_size = viewport.physical_size.as_vec2() / dpi * p.scale;
+            assert!((scene_size - Vec2::new(WIDTH, HEIGHT)).length() < 0.01);
+        }
+    }
+
     #[test]
     fn keyboard_events_reach_game_controls() {
         use bevy::input::{

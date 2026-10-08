@@ -56,10 +56,10 @@ fn main() {
                             .map(|mode| format!("WIND TOWN - AUTOMATED TEST - {mode}"))
                             .unwrap_or_else(|_| "WIND TOWN - A little place to be together".into()),
                         name: Some("wind-town".into()),
-                        resolution: (1440, 810).into(),
-                        resize_constraints: bevy::window::WindowResizeConstraints {
-                            min_width: 960.0,
-                            min_height: 540.0,
+                        resolution: game::WINDOW_SIZE.into(),
+                        resizable: false,
+                        enabled_buttons: bevy::window::EnabledButtons {
+                            maximize: false,
                             ..default()
                         },
                         ..default()

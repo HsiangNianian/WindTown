@@ -32,7 +32,11 @@ English and the pixel font ships with the game.
 | Space | Jump |
 | Enter | Open chat / send |
 | Escape | Close chat or leave the room |
-| F11 / F12 | Fullscreen / save screenshot |
+| F11 / F12 | Toggle window / fullscreen; save screenshot |
+
+The window stays at **1440 × 810**. Press **F11** to switch to fullscreen or back.
+The scene and interface scale together in whole pixels, with centered borders
+when the display size does not fit exactly.
 
 ## Download
 

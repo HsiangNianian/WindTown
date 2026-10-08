@@ -42,7 +42,7 @@ pub fn drive(
     actors: Query<&Actor>,
     mut buttons: Query<(&Action, &mut Interaction)>,
     mut keyboard: MessageWriter<KeyboardInput>,
-    window: Single<Entity, With<Window>>,
+    window: Single<(Entity, &Window)>,
     mut exit: MessageWriter<AppExit>,
 ) {
     if smoke.mode.is_empty() {
@@ -77,9 +77,53 @@ pub fn drive(
                     ButtonState::Released
                 },
                 repeat: false,
-                window: *window,
+                window: window.0,
             });
         };
+    if smoke.mode == "display" {
+        let advance = match smoke.stage {
+            0 | 2 | 4 if now - smoke.since > 3.0 => {
+                let fullscreen = smoke.stage == 2;
+                assert_eq!(
+                    window.1.mode != bevy::window::WindowMode::Windowed,
+                    fullscreen
+                );
+                assert!(!window.1.resizable && !window.1.enabled_buttons.maximize);
+                if !fullscreen {
+                    assert_eq!(window.1.size(), crate::game::WINDOW_SIZE.as_vec2());
+                }
+                let tag = match smoke.stage {
+                    0 => "window",
+                    2 => "fullscreen",
+                    _ => "restored",
+                };
+                info!(
+                    "GPU SMOKE display {tag}: {:?} physical pixels",
+                    window.1.physical_size()
+                );
+                capture(&mut commands, &smoke.mode, tag);
+                if smoke.stage != 4 {
+                    key(&mut keyboard, KeyCode::F11, Key::F11, None, true);
+                }
+                true
+            }
+            1 | 3 if now - smoke.since > 0.25 => {
+                key(&mut keyboard, KeyCode::F11, Key::F11, None, false);
+                true
+            }
+            5 if now - smoke.since > 1.0 => {
+                info!("GPU SMOKE display PASS: fixed window, F11 fullscreen, restored size");
+                exit.write(AppExit::Success);
+                true
+            }
+            _ => false,
+        };
+        if advance {
+            smoke.stage += 1;
+            smoke.since = now;
+        }
+        return;
+    }
     let mut action = None;
     let advance = match smoke.stage {
         0 if now > 3.0 => {

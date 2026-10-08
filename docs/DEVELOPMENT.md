@@ -49,12 +49,17 @@ wss://wind-town-multiplayer.opensource-941.workers.dev
 | Ctrl+A / Ctrl+V / Ctrl+C | Select, paste, copy in an input |
 | 1 / 2 / 3 | Main menu shortcuts |
 | 1 / 2 | LAN / server while choosing where to host |
-| F11 | Fullscreen |
+| F11 | Toggle fixed-size window / fullscreen |
 | F12 | Save an actual game screenshot under `artifacts/` |
 
 Chat pauses movement while typing. Messages appear above the speaker for eight
 seconds and in the room's recent chat log. Long bubbles are shortened; the log
 retains the full message. Text input supports Unicode and IME composition.
+
+Windowed mode is fixed at 1440 × 810 logical pixels; resizing and maximizing are
+disabled. F11 switches to borderless fullscreen on the current monitor and
+restores the fixed size when leaving. The UI and world share a centered 16:9
+viewport and integer pixel scale, including on HiDPI and ultrawide displays.
 
 ## Networking
 
@@ -143,6 +148,10 @@ WIND_TOWN_TEST_SERVER=wss://wind-town-multiplayer.opensource-941.workers.dev \
 ```
 
 ## GPU acceptance and artwork
+
+`WIND_TOWN_SMOKE=display cargo run --locked` checks a fixed window, F11 fullscreen,
+and the restored window size, saving screenshots of all three stages under
+`artifacts/`. This uses the real window backend and GPU, with no desktop input injection.
 
 For a full native GPU acceptance run, launch two debug builds with
 `WIND_TOWN_SMOKE=host-lan` and `WIND_TOWN_SMOKE=guest-lan` (or `host-cloud` and
