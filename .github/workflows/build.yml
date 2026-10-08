@@ -41,6 +41,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+          cache-on-failure: true
       - name: Test native game code
         run: cargo test --release --locked --target ${{ matrix.target }}
       - name: Build native executable

@@ -48,10 +48,10 @@ fn scan_lan(port: u16) -> Result<Vec<RoomEntry>, String> {
     socket
         .set_read_timeout(Some(Duration::from_millis(200)))
         .map_err(|e| e.to_string())?;
-    socket
-        .send_to(DISCOVER, ("255.255.255.255", port))
-        .map_err(|e| e.to_string())?;
-    let _ = socket.send_to(DISCOVER, ("127.0.0.1", port));
+    // A missing broadcast route must not prevent discovering a host on this computer.
+    let broadcast = socket.send_to(DISCOVER, ("255.255.255.255", port));
+    let local = socket.send_to(DISCOVER, ("127.0.0.1", port));
+    broadcast.or(local).map_err(|e| e.to_string())?;
     let start = Instant::now();
     let mut rooms = HashMap::<u64, RoomEntry>::new();
     let mut buffer = [0; 512];
