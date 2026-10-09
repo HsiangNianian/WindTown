@@ -41,7 +41,7 @@ docker run -d --name yapshire --restart unless-stopped \
   -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:latest
 ```
 
-可以用 `:v0.5.1` 等版本标签固定版本。仓库提供了 [`compose.yaml`](../compose.yaml)，
+可以用 `:v0.5.2` 等版本标签固定版本。仓库提供了 [`compose.yaml`](../compose.yaml)，
 运行 `docker compose up -d` 即可启动默认小镇。
 镜像以 UID/GID **10001** 运行，内置 HTTP 健康检查，从 `/data` 读取配置，不会写入地图。
 
@@ -60,7 +60,7 @@ docker run -d --name yapshire-custom --restart unless-stopped \
   -p 4761:4761 --read-only --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$PWD/my-town,dst=/data,readonly" \
-  ghcr.io/hsiangnianian/yapshire-server:v0.5.1
+  ghcr.io/hsiangnianian/yapshire-server:v0.5.2
 ```
 
 目录和文件需要允许 UID 10001 读取。使用 Compose 时，取消 `./my-town:/data:ro` 挂载行的注释。
@@ -101,8 +101,9 @@ docker run -d --name yapshire-custom --restart unless-stopped \
 
 游戏内局域网房主也会通过同一服务端模块共享自己保存的地图。现有公共 Cloudflare Worker
 使用内置原版地图，连接它时客户端会临时切换为原版地图。
-新独立服务端和局域网地图同步要求 **v0.5.0 或更新的客户端**（协议 2）；
-v0.5 客户端仍可连接现有 Worker。
+新独立服务端和局域网地图同步要求 **v0.5.2 或更新的客户端**（协议 2）；
+v0.5 客户端仍可连接现有 Worker。早期 Windows v0.5.0/v0.5.1 包的图块集指纹受
+CRLF 换行影响，与 Linux/macOS 联机前请更新。
 
 ## 配置
 

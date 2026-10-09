@@ -51,19 +51,19 @@ make a place to spend a little time together.
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.5.1 | After extracting |
+| Platform | Download v0.5.2 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.1/yapshire-0.5.1-windows-x64.zip) | Open `yapshire.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.1/yapshire-0.5.1-linux-x64.tar.gz) | Run `./yapshire` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.1/yapshire-0.5.1-macos-arm64.tar.gz) | Open `Yapshire.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.1/yapshire-0.5.1-macos-x64.tar.gz) | Open `Yapshire.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The bundled pixel font supports
 English and Simplified Chinese. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
-Use **v0.5.0 or later** clients for dedicated servers and LAN map synchronization.
+Use **v0.5.2 or later** clients for dedicated servers and LAN map synchronization.
 The client also connects to the existing built-in public Worker, using its
 original map. See [self-hosting](docs/SELF_HOSTING.md) for compatibility and setup.
 
@@ -122,7 +122,7 @@ window is required. Join `ws://127.0.0.1:4761` and choose **MAIN0001**.
 
 ```sh
 docker run -d --name yapshire --restart unless-stopped \
-  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.5.1
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.5.2
 ```
 
 The Linux AMD64/ARM64 image and four native server downloads use the same
@@ -133,7 +133,7 @@ Compose, configuration and public access.
 
 ## An afternoon of fishing
 
-**Included in the v0.5.1 downloads above.**
+**Included in the v0.5.2 downloads above.**
 
 Walk east past the street sign to **Tide & Tackle**. Press **E** at the door to
 enter, walk up to Mara's counter, and press **E** again to shop. A new nickname

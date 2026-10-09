@@ -5,6 +5,40 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [v0.5.2] - 2026-10-10
+
+### Self-hosted Towns
+
+- Download standalone `yapshire-server` programs for Windows, Linux, macOS Intel
+  and Apple Silicon, with editable maps and configuration included. No GPU or
+  game window is required.
+- Host with the public AMD64/ARM64 Docker image
+  `ghcr.io/hsiangnianian/yapshire-server:v0.5.2` or the included Compose file.
+- Connect through a saved custom-server address and optional password. Server,
+  client and editor share the same Tiled `.tmj` maps. Joining verifies and loads
+  the server's maps; leaving restores local maps without overwriting saved files.
+- Configure a persistent town, room/player limits, optional player-created rooms
+  and password protection. Custom layouts use the bundled tileset and fixed map
+  sizes; collision, interaction points and NPC positions remain fixed.
+
+### Cross-platform Fix
+
+- Fix Windows tileset fingerprints differing from Linux/macOS because Git
+  converted embedded metadata to CRLF. Normalize metadata line endings before
+  hashing and validation, and keep release resource files identical across OSes.
+  Existing Windows map folders remain usable; changed metadata or textures are
+  still rejected. The Linux/macOS protocol-2 fingerprint is preserved.
+- Add a shared world fingerprint fixture to every platform's CI and cover CRLF
+  files in the standalone server integration test. Preserve ARM64 build caches
+  separately from single-platform container checks.
+
+Windows v0.5.0/v0.5.1 clients must update for cross-platform games. v0.5.1 is now
+marked as a pre-release because of that issue. Use v0.5.2 or later clients for
+self-hosted towns; compatibility with the existing public Worker is retained.
+
+See the [self-hosting guide](https://github.com/HsiangNianian/Yapshire/blob/v0.5.2/docs/SELF_HOSTING.md)
+or [中文开服指南](https://github.com/HsiangNianian/Yapshire/blob/v0.5.2/docs/SELF_HOSTING.zh-CN.md).
+
 ## [v0.5.1] - 2026-10-10
 
 ### Self-hosted Towns

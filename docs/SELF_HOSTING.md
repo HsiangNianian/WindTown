@@ -47,7 +47,7 @@ docker run -d --name yapshire --restart unless-stopped \
   -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:latest
 ```
 
-Use a version tag such as `:v0.5.1` to pin a release. The repository also includes
+Use a version tag such as `:v0.5.2` to pin a release. The repository also includes
 [`compose.yaml`](../compose.yaml): `docker compose up -d` starts the default town.
 The image runs as UID/GID **10001**, includes an HTTP health check, and reads
 configuration from `/data`. It never needs to write to your maps.
@@ -67,7 +67,7 @@ docker run -d --name yapshire-custom --restart unless-stopped \
   -p 4761:4761 --read-only --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$PWD/my-town,dst=/data,readonly" \
-  ghcr.io/hsiangnianian/yapshire-server:v0.5.1
+  ghcr.io/hsiangnianian/yapshire-server:v0.5.2
 ```
 
 Ensure the directory and files are readable by UID 10001. In Compose, enable the
@@ -116,8 +116,10 @@ The supported format is deliberately small:
 
 LAN hosts publish their saved local editor maps through the same server library.
 The existing public Cloudflare Worker uses the bundled original map; clients
-temporarily switch to that map when joining it. Use **v0.5.0 or later** clients
-for the new dedicated server and LAN map handshake (protocol 2). The v0.5 client
+temporarily switch to that map when joining it. Use **v0.5.2 or later** clients
+for the dedicated server and LAN map handshake (protocol 2). Earlier Windows
+v0.5.0/v0.5.1 builds used a different tileset fingerprint due to CRLF line endings;
+update them before playing with Linux/macOS users. The v0.5 client
 also remains compatible with the existing Worker protocol.
 
 ## Configuration
