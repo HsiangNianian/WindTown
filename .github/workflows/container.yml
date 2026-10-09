@@ -23,8 +23,10 @@ jobs:
           context: .
           load: true
           tags: yapshire-server:test
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,mode=max,scope=server
+          cache-from: |
+            type=gha,scope=server-check
+            type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server-check
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -84,8 +86,11 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.licenses=AGPL-3.0-only
-          cache-from: type=gha,scope=server
-          cache-to: type=gha,mode=max,scope=server
+          # The single-platform check must not replace the ARM64 build cache.
+          cache-from: |
+            type=gha,scope=server-publish
+            type=gha,scope=server
+          cache-to: type=gha,mode=max,scope=server-publish
       - name: Verify published image on both architectures
         env:
           IMAGE: ${{ steps.image.outputs.name }}
