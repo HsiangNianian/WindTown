@@ -7,9 +7,18 @@ import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { validateRelease } from "./validate-release.mjs";
 import { mergeChangelog, commitChangelog } from "./commit-changelog.mjs";
-import { collectAssets, publishDraft } from "./release-assets.mjs";
+import { collectAssets, publishDraft, releaseNotes } from "./release-assets.mjs";
 
 const entry = (tag) => `## [${tag}] - 2026-10-08\n\n### Features\n\n- Meet friends.\n\n[${tag}]: https://example.com/releases/${tag}\n`;
+
+test("release notes preserve the selected changelog entry without other versions or references", () => {
+  const log = `# Changelog\n\n${entry("v0.3.0")}\n${entry("v0.2.0")}`;
+  assert.equal(releaseNotes(log, "v0.3.0"), "### Features\n\n- Meet friends.\n");
+  assert.equal(releaseNotes(log.replaceAll("\n", "\r\n"), "v0.2.0"), "### Features\n\n- Meet friends.\n");
+  assert.equal(releaseNotes("## [v0.3.0] - 2026-10-09\n\n- Fish.\n\n## [v0.2.0] - 2026-10-08\n- Chat.\n", "v0.3.0"), "- Fish.\n");
+  assert.throws(() => releaseNotes(log, "v0.4.0"));
+  assert.throws(() => releaseNotes("## [v0.3.0] - 2026-10-09\n", "v0.3.0"));
+});
 
 test("version sync changes only project versions and rejects mismatched tags", () => {
   const root = mkdtempSync(join(tmpdir(), "yapshire-version-"));

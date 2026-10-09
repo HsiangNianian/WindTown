@@ -43,6 +43,13 @@ try {
   assert.equal(moved.player.id, wa.you);
   assert.equal(moved.player.x, 600);
   assert.equal(moved.player.facing, true);
+  assert.equal(moved.player.indoors, false, "old movement packets default to outdoors");
+  a.send({ type: "move", x: 270, y: 0, moving: false, facing: false, indoors: true, fishing: true });
+  const shopping = (await b.next("moved")).player;
+  assert.equal(shopping.indoors, true);
+  assert.equal(shopping.fishing, false, "indoor players cannot display a fishing line");
+  a.send({ type: "move", x: 1290, y: 0, moving: false, facing: false, indoors: false, fishing: true });
+  assert.equal((await b.next("moved")).player.fishing, true);
   a.send({ type: "chat", text: "你好，远方的朋友！", id: wb.you });
   assert.equal((await b.next("chat")).id, wa.you, "identity must come from socket, not payload");
   assert.equal((await a.next("chat")).text, "你好，远方的朋友！");
@@ -67,7 +74,15 @@ try {
   });
   const after = await fetch(`${base.replace(/^ws/, "http")}/rooms`).then((r) => r.json());
   assert.equal(after.rooms.some((r) => r.code === code), false, "empty rooms disappear from lobby");
-  console.log("PASS: lobby listing and cleanup, two clients, Unicode chat, movement, bounds, identity, room isolation, disconnect, missing rooms, oversize messages");
+  const invalid = await join(room(), "Invalid activity", true);
+  await invalid.next("welcome");
+  const invalidClosed = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Invalid activity was not closed")), 10000);
+    invalid.ws.addEventListener("close", (e) => { clearTimeout(timer); assert.equal(e.code, 1007); resolve(); });
+  });
+  invalid.send({ type: "move", x: 270, y: 0, moving: false, facing: false, indoors: "yes" });
+  await invalidClosed;
+  console.log("PASS: lobby listing and cleanup, two clients, Unicode chat, movement, bounds, fishing and shop visibility, invalid activity, identity, room isolation, disconnect, missing rooms, oversize messages");
 } finally {
   for (const ws of sockets) if (ws.readyState < 2) ws.close();
 }

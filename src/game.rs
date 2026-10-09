@@ -15,7 +15,6 @@ use bevy::{
     sprite::Anchor,
     text::FontSmoothing,
 };
-use bevy_ecs_tilemap::prelude::*;
 
 pub const WIDTH: f32 = 480.0;
 pub const HEIGHT: f32 = 270.0;
@@ -27,6 +26,11 @@ pub struct Art {
     pub people: Handle<Image>,
     pub atlas: Handle<TextureAtlasLayout>,
     pub shadow: Handle<Image>,
+    pub items: Handle<Image>,
+    pub items_atlas: Handle<TextureAtlasLayout>,
+    pub panel: Handle<Image>,
+    pub slot: Handle<Image>,
+    pub water: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -36,8 +40,20 @@ pub struct Actor {
     velocity_y: f32,
     phase: f32,
     send_time: f32,
-    last_sent: (Vec2, bool, bool),
+    last_sent: (Vec2, bool, bool, bool, bool),
 }
+
+impl Actor {
+    pub(crate) fn teleport(&mut self, position: Vec2) {
+        self.position = position;
+        self.player.x = position.x;
+        self.player.y = position.y;
+        self.velocity_y = 0.0;
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct Outside;
 
 #[derive(Component)]
 pub struct Bubble {
@@ -92,6 +108,17 @@ pub fn setup(
             None,
         )),
         shadow: assets.load("shadow.png"),
+        items: assets.load("fishing/items.png"),
+        items_atlas: layouts.add(TextureAtlasLayout::from_grid(
+            UVec2::splat(32),
+            4,
+            4,
+            None,
+            None,
+        )),
+        panel: assets.load("fishing/frame.png"),
+        slot: assets.load("fishing/slot.png"),
+        water: assets.load("fishing/water.png"),
     };
     let size = Extent3d {
         width: WIDTH as u32,
@@ -136,6 +163,7 @@ pub fn setup(
     ));
     commands.spawn((
         Sprite::from_image(assets.load("sky.png")),
+        Outside,
         Transform::from_xyz(260.0, 76.0, -50.0),
         Backdrop {
             base: Vec2::new(260.0, 76.0),
@@ -144,6 +172,7 @@ pub fn setup(
     ));
     commands.spawn((
         Sprite::from_image(assets.load("hills.png")),
+        Outside,
         Transform::from_xyz(720.0, 76.0, -40.0),
         Backdrop {
             base: Vec2::new(720.0, 76.0),
@@ -159,42 +188,20 @@ pub fn setup(
     ] {
         commands.spawn((
             Sprite::from_image(assets.load("cloud.png")),
+            Outside,
             Transform::from_xyz(x, y, -45.0),
             Cloud { x, y, speed },
         ));
     }
     commands.spawn((
-        Sprite::from_image(assets.load("town.png")),
-        Transform::from_xyz(720.0, 80.0, -5.0),
+        Sprite {
+            image: assets.load("town.png"),
+            rect: Some(Rect::new(0.0, 0.0, 928.0, 192.0)),
+            ..default()
+        },
+        Outside,
+        Transform::from_xyz(464.0, 80.0, -20.0),
     ));
-    let size = TilemapSize { x: 90, y: 4 };
-    let entity = commands.spawn_empty().id();
-    let mut storage = TileStorage::empty(size);
-    for x in 0..size.x {
-        for y in 0..size.y {
-            let pos = TilePos { x, y };
-            let tile = commands
-                .spawn(TileBundle {
-                    position: pos,
-                    tilemap_id: TilemapId(entity),
-                    texture_index: TileTextureIndex(if y == 3 { x % 2 } else { 2 + (x + y) % 2 }),
-                    ..default()
-                })
-                .id();
-            storage.set(&pos, tile);
-        }
-    }
-    let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
-    commands.entity(entity).insert(TilemapBundle {
-        grid_size: tile_size.into(),
-        map_type: TilemapType::Square,
-        size,
-        storage,
-        texture: TilemapTexture::Single(assets.load("tiles.png")),
-        tile_size,
-        transform: Transform::from_xyz(8.0, -56.0, 0.0),
-        ..default()
-    });
     for i in 0..22 {
         let origin = Vec2::new(30.0 + i as f32 * 64.0, 12.0 + (i * 17 % 62) as f32);
         commands.spawn((
@@ -204,6 +211,7 @@ pub fn setup(
                 origin,
                 phase: i as f32 * 2.3,
             },
+            Outside,
         ));
     }
     commands.insert_resource(art);
@@ -213,7 +221,8 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
     let position = Vec2::new(player.x, player.y);
     let row = player.id as usize % 4;
     let name = crate::network::clean(&player.name, 12);
-    commands
+    let id = player.id;
+    let entity = commands
         .spawn((
             Sprite::from_atlas_image(
                 art.people.clone(),
@@ -230,7 +239,7 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
                 velocity_y: 0.0,
                 phase: 0.0,
                 send_time: 0.0,
-                last_sent: (position, false, false),
+                last_sent: (position, false, false, false, false),
             },
         ))
         .with_children(|parent| {
@@ -245,11 +254,14 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
                 TextBackgroundColor(Color::srgba_u8(42, 66, 56, 220)),
                 Transform::from_xyz(0.0, 40.0, 0.5),
             ));
-        });
+        })
+        .id();
+    crate::coast::rod(commands, entity, id, art);
 }
 
 fn step(position: &mut Vec2, velocity_y: &mut f32, direction: f32, run: bool, jump: bool, dt: f32) {
-    position.x = (position.x + direction * if run { 105.0 } else { 62.0 } * dt).clamp(12.0, 1428.0);
+    position.x = (position.x + direction * if run { 105.0 } else { 62.0 } * dt)
+        .clamp(12.0, crate::fishing::PIER_END - 12.0);
     if jump && position.y == 0.0 {
         *velocity_y = 174.0;
     }
@@ -266,6 +278,7 @@ pub fn walk(
     menu: Res<Menu>,
     chat: Res<Chat>,
     session: Res<Session>,
+    fishing: Res<crate::fishing::Fishing>,
     window: Single<&Window>,
     mut actors: Query<&mut Actor>,
 ) {
@@ -273,7 +286,14 @@ pub fn walk(
     for mut actor in &mut actors {
         if Some(actor.player.id) != session.you {
             let target = Vec2::new(
-                actor.player.x.clamp(12.0, 1428.0),
+                actor.player.x.clamp(
+                    12.0,
+                    if actor.player.indoors {
+                        444.0
+                    } else {
+                        crate::fishing::PIER_END - 12.0
+                    },
+                ),
                 actor.player.y.clamp(0.0, 96.0),
             );
             actor.position = actor.position.lerp(target, 1.0 - (-18.0 * dt).exp());
@@ -281,6 +301,7 @@ pub fn walk(
         }
         let enabled = menu.page == Page::Playing
             && !chat.open
+            && !fishing.modal()
             && session.connected
             && (window.focused
                 || (cfg!(debug_assertions) && std::env::var_os("YAPSHIRE_SMOKE").is_some()));
@@ -298,6 +319,9 @@ pub fn walk(
             ..
         } = &mut *actor;
         step(position, velocity_y, direction, run, jump, dt);
+        if fishing.indoors {
+            actor.position.x = actor.position.x.clamp(38.0, 444.0);
+        }
         actor.player.x = actor.position.x;
         actor.player.y = actor.position.y;
         actor.player.moving = direction != 0.0;
@@ -305,7 +329,13 @@ pub fn walk(
             actor.player.facing = direction < 0.0;
         }
         actor.send_time += dt;
-        let now = (actor.position, actor.player.moving, actor.player.facing);
+        let now = (
+            actor.position,
+            actor.player.moving,
+            actor.player.facing,
+            actor.player.indoors,
+            actor.player.fishing,
+        );
         if actor.send_time >= 0.05 && now != actor.last_sent {
             if let Some(link) = &session.link {
                 let sent = link.send.try_send(ClientMessage::Move {
@@ -313,6 +343,8 @@ pub fn walk(
                     y: actor.player.y,
                     moving: actor.player.moving,
                     facing: actor.player.facing,
+                    indoors: actor.player.indoors,
+                    fishing: actor.player.fishing,
                 });
                 if sent.is_ok() {
                     actor.last_sent = now;
@@ -365,12 +397,19 @@ pub fn follow_camera(
     actors: Query<&Actor>,
     mut camera: Single<&mut Transform, (With<WorldCamera>, Without<Backdrop>)>,
     mut backdrops: Query<(&Backdrop, &mut Transform), Without<WorldCamera>>,
+    mut was_indoors: Local<bool>,
 ) {
-    let target = actors
-        .iter()
-        .find(|a| Some(a.player.id) == session.you)
-        .map_or(260.0, |a| a.position.x)
-        .clamp(240.0, 1200.0);
+    let mine = actors.iter().find(|a| Some(a.player.id) == session.you);
+    let indoors = mine.is_some_and(|a| a.player.indoors);
+    let target = if indoors {
+        240.0
+    } else {
+        mine.map_or(260.0, |a| a.position.x).clamp(240.0, 1200.0)
+    };
+    if *was_indoors != indoors {
+        camera.translation.x = target;
+        *was_indoors = indoors;
+    }
     let x = camera.translation.x
         + (target - camera.translation.x) * (1.0 - (-6.0 * time.delta_secs()).exp());
     camera.translation.x = if (target - x).abs() < 1.0 {
@@ -437,14 +476,20 @@ pub fn bubbles(
     mut commands: Commands,
     time: Res<Time>,
     actors: Query<&Actor>,
-    mut bubbles: Query<(Entity, &mut Bubble, &mut Transform)>,
+    fishing: Res<crate::fishing::Fishing>,
+    mut bubbles: Query<(Entity, &mut Bubble, &mut Transform, &mut Visibility)>,
 ) {
-    for (entity, mut bubble, mut transform) in &mut bubbles {
+    for (entity, mut bubble, mut transform, mut visibility) in &mut bubbles {
         if bubble.timer.tick(time.delta()).is_finished() {
             commands.entity(entity).despawn();
             continue;
         }
         if let Some(actor) = actors.iter().find(|a| a.player.id == bubble.id) {
+            *visibility = if actor.player.indoors == fishing.indoors {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
             transform.translation.x = actor.position.x.round();
             transform.translation.y = actor.position.y.round() + 50.0 + bubble.height / 2.0;
         }
@@ -594,6 +639,10 @@ mod tests {
         }
         assert_eq!(pos, Vec2::new(12.0, 0.0));
         assert_eq!(vy, 0.0);
+        for _ in 0..1000 {
+            step(&mut pos, &mut vy, 1.0, true, false, 1.0 / 60.0);
+        }
+        assert_eq!(pos.x, crate::fishing::PIER_END - 12.0);
     }
     #[test]
     fn bubble_is_readable_and_bounded() {

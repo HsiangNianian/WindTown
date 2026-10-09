@@ -1,6 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod coast;
+mod fishing;
+#[cfg(debug_assertions)]
+mod fishing_smoke;
+mod fishing_ui;
 mod game;
+mod maps;
 mod network;
 #[cfg(debug_assertions)]
 mod smoke;
@@ -39,10 +45,12 @@ fn main() {
         std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/assets"))
     };
     let mut app = App::new();
-    app.insert_resource(ClearColor(Color::srgb_u8(35, 56, 57)))
+    app.insert_resource(maps::Maps::load(&asset_path).expect("Unable to load Yapshire maps"))
+        .insert_resource(ClearColor(Color::srgb_u8(35, 56, 57)))
         .init_resource::<Session>()
         .init_resource::<ui::Menu>()
         .init_resource::<ui::Chat>()
+        .init_resource::<fishing::Fishing>()
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
@@ -68,7 +76,7 @@ fn main() {
                 }),
         )
         .add_plugins(bevy_ecs_tilemap::TilemapPlugin)
-        .add_systems(Startup, game::setup)
+        .add_systems(Startup, (game::setup, coast::setup).chain())
         .add_systems(
             Update,
             (
@@ -77,12 +85,20 @@ fn main() {
                 ui::keyboard,
                 connect_requests,
                 network_events,
+                fishing::update,
                 game::walk,
                 game::animate,
                 game::follow_camera,
+                coast::animate,
+                coast::animate_rig,
                 game::bubbles,
-                ui::render,
-                ui::refresh,
+                (
+                    ui::render,
+                    fishing_ui::render,
+                    ui::refresh,
+                    fishing_ui::refresh,
+                )
+                    .chain(),
                 game::fit_window,
                 game::capture,
             )
@@ -90,6 +106,8 @@ fn main() {
         );
     #[cfg(debug_assertions)]
     app.init_resource::<smoke::Smoke>()
+        .init_resource::<fishing_smoke::Check>()
+        .add_systems(Update, fishing_smoke::drive.before(ui::buttons))
         .add_systems(Update, smoke::drive.before(ui::buttons))
         .add_systems(Update, smoke::record.after(ui::render));
     app.run();
@@ -196,6 +214,9 @@ fn network_events(
                     }
                     for (_, mut actor) in &mut actors {
                         if actor.player.id == player.id {
+                            if actor.player.indoors != player.indoors {
+                                actor.teleport(Vec2::new(player.x, player.y));
+                            }
                             actor.player = player.clone();
                         }
                     }

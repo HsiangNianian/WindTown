@@ -14,7 +14,11 @@ class PackagingTests(unittest.TestCase):
             root = Path(tmp)
             (root / "Cargo.toml").write_text('[package]\nversion = "1.2.3"\n')
             for name in ["README.md", "README.zh-CN.md", "LICENSE.md", "CHANGELOG.md", "assets/people.png",
-                         "assets/town.png", "assets/fonts/fusion-pixel.ttf", "assets/fonts/OFL.txt"]:
+                         "assets/town.png", "assets/fonts/fusion-pixel.ttf", "assets/fonts/OFL.txt",
+                         "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
+                         "assets/maps/harbor.tsj", "assets/maps/harbor.png",
+                         "assets/fishing/items.png", "assets/fishing/frame.png",
+                         "assets/fishing/slot.png", "assets/fishing/water.png"]:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"test fixture")
@@ -43,6 +47,10 @@ class PackagingTests(unittest.TestCase):
                 self.assertIn(prefix + "README.zh-CN.md", names)
                 self.assertTrue(any(name.endswith("assets/fonts/fusion-pixel.ttf") for name in names))
                 self.assertTrue(any(name.endswith("assets/fonts/OFL.txt") for name in names))
+                for asset in ["town.tmj", "tackle-shop.tmj", "harbor.tsj", "harbor.png"]:
+                    self.assertTrue(any(name.endswith("assets/maps/" + asset) for name in names))
+                for asset in ["items.png", "frame.png", "slot.png", "water.png"]:
+                    self.assertTrue(any(name.endswith("assets/fishing/" + asset) for name in names))
 
     def test_missing_binary_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

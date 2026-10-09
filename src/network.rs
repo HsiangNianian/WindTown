@@ -120,6 +120,10 @@ pub struct Player {
     pub y: f32,
     pub moving: bool,
     pub facing: bool,
+    #[serde(default)]
+    pub indoors: bool,
+    #[serde(default)]
+    pub fishing: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -130,6 +134,10 @@ pub enum ClientMessage {
         y: f32,
         moving: bool,
         facing: bool,
+        #[serde(default)]
+        indoors: bool,
+        #[serde(default)]
+        fishing: bool,
     },
     Chat {
         text: String,
@@ -616,6 +624,8 @@ fn serve_peer(
             y: 0.0,
             moving: false,
             facing: false,
+            indoors: false,
+            fishing: false,
         };
         broadcast(
             &peers,
@@ -697,6 +707,8 @@ fn relay(
                 y,
                 moving,
                 facing,
+                indoors,
+                fishing,
             } => {
                 if !x.is_finite() || !y.is_finite() {
                     break;
@@ -709,6 +721,8 @@ fn relay(
                 peer.player.y = y.clamp(0.0, 96.0);
                 peer.player.moving = moving;
                 peer.player.facing = facing;
+                peer.player.indoors = indoors;
+                peer.player.fishing = fishing && !indoors;
                 let player = peer.player.clone();
                 broadcast(&peers, ServerMessage::Moved { player }, Some(id));
             }
@@ -835,10 +849,12 @@ mod tests {
                 y: 20.0,
                 moving: true,
                 facing: false,
+                indoors: true,
+                fishing: false,
             })
             .unwrap();
         assert!(
-            matches!(next(&b, "move"), ServerMessage::Moved { player } if player.id == id && player.x == 600.0)
+            matches!(next(&b, "move"), ServerMessage::Moved { player } if player.id == id && player.x == 600.0 && player.indoors && !player.fishing)
         );
         a.send
             .send(ClientMessage::Chat {
@@ -903,6 +919,18 @@ mod tests {
         .unwrap();
         assert!(
             matches!(read(&mut b), ServerMessage::Moved { player } if player.id == you && player.x == 700.0 && player.facing)
+        );
+        a.send(Message::text(
+            r#"{"type":"move","x":270,"y":0,"moving":false,"facing":false,"indoors":true,"fishing":true}"#,
+        )).unwrap();
+        assert!(
+            matches!(read(&mut b), ServerMessage::Moved { player } if player.indoors && !player.fishing)
+        );
+        a.send(Message::text(
+            r#"{"type":"move","x":1290,"y":0,"moving":false,"facing":false,"indoors":false,"fishing":true}"#,
+        )).unwrap();
+        assert!(
+            matches!(read(&mut b), ServerMessage::Moved { player } if !player.indoors && player.fishing)
         );
         a.send(Message::text(r#"{"type":"chat","text":"你好，小镇！"}"#))
             .unwrap();

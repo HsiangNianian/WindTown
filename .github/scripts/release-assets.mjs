@@ -7,6 +7,18 @@ import { readdirSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+/** Use the tagged changelog entry verbatim for the release body. */
+export function releaseNotes(changelog, tag) {
+  const lines = changelog.replaceAll("\r", "").split("\n");
+  const start = lines.findIndex((line) => line.startsWith(`## [${tag}] - `));
+  assert(start >= 0, `Changelog is missing ${tag}`);
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith("## ") && !/^\[[^\]]+\]:/.test(lines[end])) end++;
+  const notes = lines.slice(start + 1, end).join("\n").trim();
+  assert(notes, `Changelog entry for ${tag} is empty`);
+  return notes + "\n";
+}
+
 /** Require one archive per platform plus the shared changelog and checksum manifest. */
 export function collectAssets(root = "release-assets", changelog = "CHANGELOG.md", version = validateRelease()) {
   const platforms = { "linux-x64": ".tar.gz", "windows-x64": ".zip", "macos-arm64": ".tar.gz", "macos-x64": ".tar.gz" };
@@ -57,5 +69,10 @@ export async function publishDraft(github, repo, tag, releaseId, expected = JSON
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  writeFileSync("release-assets.json", JSON.stringify(collectAssets(), null, 2) + "\n");
+  if (process.argv.includes("--notes")) {
+    const version = validateRelease(".", process.env.RELEASE_TAG || "");
+    writeFileSync("release-notes.md", releaseNotes(readFileSync("CHANGELOG.md", "utf8"), `v${version}`));
+  } else {
+    writeFileSync("release-assets.json", JSON.stringify(collectAssets(), null, 2) + "\n");
+  }
 }

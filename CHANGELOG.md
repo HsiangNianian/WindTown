@@ -1,9 +1,44 @@
 # Changelog
 
-Release entries are generated from Conventional Commits by the tag release
-workflow. Each entry also supplies the corresponding GitHub Release Notes.
-The workflow commits this file after all platform archives have been uploaded
-and verified.
+Each release entry supplies the corresponding GitHub Release Notes. Entries
+prepared before tagging are also bundled in every platform archive. When an
+entry is absent, the release workflow generates it from Conventional Commits
+and commits it after all platform archives have been uploaded and verified.
+
+## [v0.3.0] - 2026-10-09
+
+### New Features
+
+- Visit Tide & Tackle, buy a bamboo rod, hook and bait with a starting wallet of
+  100 coins, and sell your catches at Mara's counter.
+- Fish at the seaside pier: time the bite, hold Space to reel, and release it to
+  manage line tension. Catch sardines, mackerel, sea bass and golden bream.
+- Open an illustrated satchel with pixel-art equipment, bait, coins and fish;
+  watch the casting line, float, splashes and swimming fish during the minigame.
+- Explore a tiled coast and shop interior with animated water. The shipped
+  16 × 16 maps can be edited in Tiled without rebuilding the game.
+- Save wallet, tackle, bait and catches locally per nickname. LAN and online
+  friends can see each other's shop location and fishing pose.
+
+### Fixes and Polish
+
+- Cast into open water beyond the pier and stop at its edge; keep the float
+  visible while activity panels are open.
+- Align pixel panel borders, improve shop door and counter proportions, place
+  the shopkeeper behind the counter, and clear overlapping signs.
+- Validate map data and local saves, preserve invalid saves, and provide an
+  emergency worm when a player with tackle cannot afford more bait.
+- Bundle the map and fishing artwork on every platform and use this changelog
+  entry for the release notes and packaged documentation.
+
+### Notes
+
+- Everyone should use v0.3.0 for the updated maps and activities. Self-hosted
+  Workers need the matching server update; the built-in public server supports it.
+- Progress stays on the local computer; items and money are not shared between
+  players. Edited maps retain fixed collision and interaction positions and are
+  not synchronized between clients.
+- Windows and macOS builds are unsigned; macOS builds are not notarized.
 
 ## [v0.2.0] - 2026-10-09
 ### New Features
@@ -27,3 +62,5 @@ and verified.
 [v0.1.0]: https://github.com/HsiangNianian/Yapshire/compare/a21eb24767b62f3b8c9b82bf199d41d1cde36044...v0.1.0
 
 [v0.2.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.1.0...v0.2.0
+
+[v0.3.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.2.0...v0.3.0

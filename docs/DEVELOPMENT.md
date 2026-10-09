@@ -42,9 +42,11 @@ wss://yapshire-multiplayer.opensource-941.workers.dev
 | --- | --- |
 | A / D or Left / Right | Walk |
 | Shift | Run |
-| Space | Jump |
+| Space | Jump / hook a bite / hold to reel |
+| E | Enter / leave the tackle shop, browse the counter, cast at the pier |
+| I | Open / close the illustrated satchel |
 | Enter | Open chat / send |
-| Escape | Close chat, unfocus a field, or leave the room |
+| Escape | Close a panel / cancel a cast, exit the shop, close chat, unfocus a field, or leave the room |
 | Tab | Next input field |
 | Ctrl+A / Ctrl+V / Ctrl+C | Select, paste, copy in an input |
 | 1 / 2 / 3 | Main menu shortcuts |
@@ -60,6 +62,87 @@ Windowed mode is fixed at 1440 × 810 logical pixels; resizing and maximizing ar
 disabled. F11 switches to borderless fullscreen on the current monitor and
 restores the fixed size when leaving. The UI and world share a centered 16:9
 viewport and integer pixel scale, including on HiDPI and ultrawide displays.
+
+## Fishing and local progress
+
+Version 0.3.0 includes a walkable tackle-shop interior and a coastal pier.
+New nicknames start with 100 coins. The counter sells a rod (45), a reusable hook
+(15), and five worms (10); both tackle items equip automatically. Each cast spends
+one worm, including missed bites, escaped fish and cancelled casts. A bite gives
+1.5 seconds to press Space. Hold Space to reel, release to reduce tension, and
+bring the catch meter to full. Fish can be sold at the counter. If a player with
+tackle runs out of bait, has no fish, and cannot afford a bait pack, the counter
+provides one emergency worm.
+
+The satchel shows pixel-art tackle, a worm tin, coins and four fish slots, with
+equipped states and stack counts. The shop uses matching illustrated purchase
+cards. At the end of the pier, casting animates the rod and line into open water;
+the float bobs, a bite splashes, and the fish darts as it pulls against the line.
+The small water view shows the fish moving closer as you reel. A landed fish
+lifts out of the sea before appearing in the satchel. The chat and controls
+panels hide during these activities so the float remains visible.
+
+Purchases, casts, catches and sales save automatically per nickname. Files are
+named with the nickname's UTF-8 bytes encoded as hex:
+
+| Platform | Save directory |
+| --- | --- |
+| Linux | `$XDG_DATA_HOME/yapshire`, or `~/.local/share/yapshire` |
+| Windows | `%APPDATA%/Yapshire` |
+| macOS | `~/Library/Application Support/Yapshire` |
+
+`YAPSHIRE_SAVE_DIR` overrides the directory for isolated tests. Writes replace
+the save through a temporary file. Invalid or unsupported saves disable purchases
+and fishing instead of overwriting the file; an on-screen message reports load or
+write failures. Keep using the same nickname to resume progress.
+
+Progress is local to each computer. Coins and catches are not traded or synchronized
+between players. Movement packets synchronize the shop area and fishing pose;
+both the LAN relay and Worker accept older packets with these optional flags absent.
+Update a self-hosted Worker together with the client to show the new area and poses.
+
+## Tilemaps
+
+The street floor, quay, animated water, timber pier, tackle-shop exterior and
+interior render through `bevy_ecs_tilemap`. The coastal area shares the town's
+sky and hills. The older street's decorative buildings and trees remain a
+background illustration; characters, signs above NPCs and fishing rods are sprites.
+
+Open these files directly in [Tiled](https://www.mapeditor.org/):
+
+| File | Contents |
+| --- | --- |
+| `assets/maps/town.tmj` | 90 × 17 cells: water, shore and pilings, terrain, buildings, props |
+| `assets/maps/tackle-shop.tmj` | 30 × 17 cells: backdrop, walls, floor, furniture, counter |
+| `assets/maps/harbor.tsj` | Shared 16 × 16 tiles and water animations |
+| `assets/maps/harbor.png` | The tileset image |
+
+Maps load from the same runtime `assets/` folder as the artwork. Save a map and
+restart the game to see layout changes; rebuilding Rust is unnecessary. Keep
+the existing five layers in order, their original dimensions and offsets, and
+use uncompressed JSON tile arrays. Empty cells, hidden layers and Tiled tile
+flips are supported. Invalid sizes, tile IDs and animation ranges are rejected
+at startup instead of producing a broken tilemap. This is a small loader for
+these finite orthogonal maps, not a general importer for every Tiled feature.
+
+The current demo has one flat walking surface at world **y = 0**, corresponding
+to **y = 208** in Tiled (the top of tile row 13). Editing artwork does not change
+collision or interaction positions: the outdoor shop door is x = 965, indoor
+exit x = 64, counter x = 270, and fishing begins at x = 1304. The pier ends at
+x = 1360; players stop 12 pixels before its edge and cast into the water beyond.
+Preserve these anchors when editing. New platforms, slopes or moved interactions need matching
+gameplay changes; custom maps are not synchronized between multiplayer clients.
+
+To regenerate the original harbor tiles and both default layouts:
+
+```sh
+uv run --with Pillow tools/draw_maps.py
+```
+
+This **overwrites** the map layouts, so keep any hand-edited maps first. The
+generator checks tile bounds and a continuous floor. Rust tests additionally
+check map loading, interaction alignment and invalid tile data. Release packaging
+requires all four map assets and the four `assets/fishing/` images on every platform.
 
 ## Networking
 
@@ -133,10 +216,14 @@ cd server && npm test
 SERVER_URL=wss://yapshire-multiplayer.opensource-941.workers.dev node --use-env-proxy test/rooms.mjs
 ```
 
+The Rust tests also cover tackle purchases, insufficient funds, repeated purchases,
+bait consumption, selling, save replacement and validation, and fishing wins/losses
+at 30, 60 and 144 simulation steps per second.
 The Rust tests cover movement, jumping, map bounds, actual Bevy keyboard event
 delivery, Unicode editing, bubble limits, UDP discovery, two real LAN sockets,
 and bounded TLS failure handling.
 The Worker test covers discovery, lobby cleanup, room isolation, identity, movement,
+shop and fishing flags, invalid activity input,
 Unicode chat, disconnects, missing rooms, and oversize input.
 
 To exercise the exact Rust client's WSS, proxy, hosting, lobby, joining, movement,
@@ -148,6 +235,22 @@ YAPSHIRE_TEST_SERVER=wss://yapshire-multiplayer.opensource-941.workers.dev \
 ```
 
 ## GPU acceptance and artwork
+
+On Linux, run the complete fishing loop with a fresh, isolated save directory:
+
+```sh
+YAPSHIRE_SMOKE=fishing YAPSHIRE_SAVE_DIR="$(mktemp -d)" cargo run --locked
+# With the local Worker running:
+YAPSHIRE_SMOKE=fishing-cloud YAPSHIRE_TEST_SERVER=ws://127.0.0.1:8787 \
+  YAPSHIRE_SAVE_DIR="$(mktemp -d)" cargo run --locked
+```
+
+This debug-only driver uses the real game controls to walk into the shop, buy
+tackle and bait, reach the pier, miss one bite, catch a fish by controlling line
+tension, return to the counter, sell it, and verify the saved balance. It saves
+actual screenshots, including the street-to-shop and quay-to-pier transitions, under `artifacts/fishing-*.png` or
+`artifacts/fishing-cloud-*.png`. Use a fresh save directory for every run.
+The LAN run uses local port 4777.
 
 `YAPSHIRE_SMOKE=display cargo run --locked` checks a fixed window, F11 fullscreen,
 and the restored window size, saving screenshots of all three stages under
@@ -188,6 +291,7 @@ The checked-in PNGs are ready to run. To regenerate the original art:
 
 ```sh
 uv run --with Pillow tools/draw_assets.py
+uv run --with Pillow tools/draw_fishing.py
 ```
 
 Native GPU gameplay is verified on Linux. GitHub Actions builds and tests Windows,
@@ -226,32 +330,38 @@ npm test --prefix server
 ## Releases and changelog
 
 Game and Worker versions move together. Prepare a version from the repository
-root, review the diff, and commit it before tagging:
+root, update both README download tables and add the version entry to
+`CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.2.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.3.0 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
-git commit -m "chore: prepare v0.2.0"
+git add README.md README.zh-CN.md CHANGELOG.md
+git commit -m "chore: prepare v0.3.0"
 # Once the release commit is on main:
-git tag -a v0.2.0 -m "Release v0.2.0"
-git push origin main v0.2.0
+git tag -a v0.3.0 -m "Release v0.3.0"
+git push origin main v0.3.0
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.2.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.3.0"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 
-[`release.yml`](../.github/workflows/release.yml) generates notes from Conventional
-Commits using the same changelog action as IntelligentMixVideo. The range runs
+[`release.yml`](../.github/workflows/release.yml) reads Release Notes directly
+from the tagged changelog entry. Preparing the entry before tagging keeps the
+notes, uploaded changelog and documentation inside every archive identical.
+If the entry is absent, the workflow generates it from Conventional Commits
+using the same changelog action as IntelligentMixVideo; that fallback entry
+cannot appear in archives already built from the tag. The generated range runs
 from the preceding ancestor version tag to the new tag. The first release uses
 the empty repository bootstrap commit as its baseline.
 
 After every build succeeds, the workflow uploads the four archives,
 `SHA256SUMS`, and `CHANGELOG.md` to a **draft**. It verifies the uploaded names,
 sizes and available digests before publishing. Release Notes and the changelog
-entry come from the same generated changes. Then a bot merges that entry into
+entry use the same text. Then a bot merges any missing entry into
 the latest default branch, preserving concurrent edits and existing releases.
 
 Failed drafts can be retried. Published releases remain unchanged; a retry can

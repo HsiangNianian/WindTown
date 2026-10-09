@@ -37,7 +37,11 @@ def package(root, target):
         shutil.copy2(root / file, stage / file)
     if (root / "docs").is_dir():
         shutil.copytree(root / "docs", stage / "docs")
-    for required in ["assets/people.png", "assets/town.png", "assets/fonts/fusion-pixel.ttf"]:
+    for required in ["assets/people.png", "assets/town.png", "assets/fonts/fusion-pixel.ttf",
+                     "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
+                     "assets/maps/harbor.tsj", "assets/maps/harbor.png",
+                     "assets/fishing/items.png", "assets/fishing/frame.png",
+                     "assets/fishing/slot.png", "assets/fishing/water.png"]:
         if not (executable_dir / required).is_file():
             raise ValueError(f"Missing bundled asset: {required}")
     if mac:

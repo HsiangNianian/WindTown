@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>A little town. A little company.</strong><br>
-  Walk down a pixel street, find your friends, and press Enter to say hello.
+  Meet your friends, chat along a pixel street, and spend an afternoon fishing.
 </p>
 
 <p align="center">
@@ -24,6 +24,7 @@
 <p align="center">
   <a href="#download-and-play">Download</a> ·
   <a href="#meet-me-in-town">Play together</a> ·
+  <a href="#an-afternoon-of-fishing">Fishing</a> ·
   <a href="#controls">Controls</a> ·
   <a href="docs/DEVELOPMENT.md">Development</a> ·
   <a href="CHANGELOG.md">Changelog</a>
@@ -34,7 +35,7 @@
 ## A quiet street, a few good friends
 
 **Yapshire** is a small native multiplayer game built with **Rust and Bevy**.
-Walk past the coffee shop, run and jump along the street, or stop for a chat.
+Walk past the coffee shop, stop for a chat, or buy some tackle and fish at the pier.
 Animated pixel characters, drifting clouds, warm windows, and speech bubbles
 make a place to spend a little time together.
 
@@ -50,20 +51,21 @@ make a place to spend a little time together.
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.2.0 | After extracting |
+| Platform | Download v0.3.0 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-windows-x64.zip) | Open `yapshire.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-linux-x64.tar.gz) | Run `./yapshire` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-x64.tar.gz) | Open `Yapshire.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The interface is in English
 and the pixel font is included. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
-For multiplayer, have everyone use **v0.2.0 or newer**: this version moves to the
-Yapshire public lobby and LAN discovery identifier.
+For multiplayer, have everyone use **v0.3.0** for the same maps and activities.
+Self-hosted servers also need the matching Worker update; the built-in public
+server already supports shop locations and fishing poses.
 
 <details>
 <summary><strong>Platform notes</strong></summary>
@@ -109,15 +111,51 @@ broadcast network; use a manual address when discovery is blocked. The demo
 server supports up to 40 rooms. See the [networking guide](docs/DEVELOPMENT.md#networking)
 for room lifetimes, ports, proxies, and connection limits.
 
+## An afternoon of fishing
+
+**Included in the v0.3.0 downloads above.**
+
+Walk east past the street sign to **Tide & Tackle**. Press **E** at the door to
+enter, walk up to Mara's counter, and press **E** again to shop. A new nickname
+starts with **100 coins**: a reusable bamboo rod costs **45**, a reusable hook
+costs **15**, and five worms cost **10**. Click a purchase or use **1 / 2 / 3**.
+
+Continue east to the seaside pier and press **E** to cast. Each cast uses one
+worm. When **BITE!** appears, tap **Space** before the timer runs out. Then hold
+**Space** to reel and release it to ease the line tension. Fill the catch meter
+without snapping the line or letting the fish escape.
+
+Press **I** to open your illustrated satchel: tackle, bait, coins and fish have
+pixel sprites, stack counts and equipped states. The shop uses matching item
+cards. At the pier, watch your cast, bobbing float, splashes and swimming fish;
+the water view shows the fish coming closer as you reel.
+
+Take your sardines, mackerel, sea bass, or
+golden bream back to the counter and choose **Sell catch** (**4**) to earn coins.
+Mara supplies one emergency worm if you have tackle but no bait, no fish to sell,
+and fewer than 10 coins.
+
+Wallets, tackle, bait, and catches save locally under each nickname. Use the same
+nickname to continue; progress does not sync between computers. Friends can see
+one another inside the shop and see fishing rods on the pier when using the
+updated client and server.
+
+The street floor, coast, pier and tackle shop use 16 × 16 tilemaps, including
+animated water. Edit the shipped `.tmj` maps in Tiled and restart the game to see
+your layout changes. See the [map editing guide](docs/DEVELOPMENT.md#tilemaps)
+for the demo's fixed collision and interaction limits.
+
 ## Controls
 
 | Key | Action |
 | --- | --- |
 | A / D or Left / Right | Walk |
 | Shift | Run |
-| Space | Jump |
+| Space | Jump / hook a bite / hold to reel |
+| E | Enter or leave the tackle shop, browse the counter, cast at the pier |
+| I | Open / close your satchel |
 | Enter | Open chat / send |
-| Escape | Close chat, unfocus a field, or leave the room |
+| Escape | Close the current panel or cancel a cast, leave the shop, close chat, or leave the room |
 | Tab | Next input field |
 | Ctrl+A / Ctrl+V / Ctrl+C | Select, paste, or copy in an input |
 | F11 | Switch between the fixed window and fullscreen |

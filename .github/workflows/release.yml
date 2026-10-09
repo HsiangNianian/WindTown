@@ -74,12 +74,6 @@ jobs:
           fetch-depth: 0
           path: changelog-repo
 
-      - name: Read current changelog
-        run: |
-          if [ -f changelog-repo/CHANGELOG.md ]; then
-            cp changelog-repo/CHANGELOG.md CHANGELOG.md
-          fi
-
       - name: Check whether this release is already published
         id: published
         uses: actions/github-script@v8
@@ -108,7 +102,7 @@ jobs:
 
       - name: Generate changelog from Conventional Commits
         id: changelog
-        if: steps.published.outputs.exists != 'true'
+        if: steps.published.outputs.exists != 'true' && steps.existing.outputs.write == 'true'
         uses: requarks/changelog-action@v1
         with:
           token: ${{ github.token }}
@@ -119,6 +113,12 @@ jobs:
           changelogFilePath: CHANGELOG.md
           writeToFile: ${{ steps.existing.outputs.write }}
           useGitmojis: false
+
+      - name: Read release notes from the tagged changelog
+        if: steps.published.outputs.exists != 'true'
+        run: node .github/scripts/release-assets.mjs --notes
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
 
       - name: Download all platform archives
         if: steps.published.outputs.exists != 'true'
@@ -140,7 +140,7 @@ jobs:
         with:
           tag: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          body: ${{ steps.changelog.outputs.changes }}
+          bodyFile: release-notes.md
           artifacts: "release-assets/**/*.tar.gz,release-assets/**/*.zip,release-assets/SHA256SUMS,CHANGELOG.md"
           artifactErrorsFailBuild: true
           allowUpdates: true

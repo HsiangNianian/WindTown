@@ -51,7 +51,7 @@ pub fn drive(
     window: Single<(Entity, &Window)>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if smoke.mode.is_empty() {
+    if smoke.mode.is_empty() || smoke.mode.starts_with("fishing") {
         return;
     }
     let now = time.elapsed_secs();

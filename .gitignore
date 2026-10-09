@@ -3,6 +3,7 @@
 /dist/
 /release-assets/
 /release-assets.json
+/release-notes.md
 /changelog-repo/
 /.venv/
 __pycache__/

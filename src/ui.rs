@@ -200,6 +200,7 @@ pub enum Action {
     Refresh,
     JoinRoom(usize),
     NextRooms,
+    Fishing(crate::fishing::Action),
 }
 #[derive(Component)]
 pub struct Root;
@@ -212,14 +213,16 @@ pub struct ChatValue;
 #[derive(Component)]
 pub struct ChatLog;
 #[derive(Component)]
+pub(crate) struct PlayOverlay;
+#[derive(Component)]
 pub struct RoomStatus;
 #[derive(Component)]
 pub struct BaseColor(Color);
 
-const INK: Color = Color::srgb_u8(48, 76, 67);
-const GREEN: Color = Color::srgb_u8(64, 99, 80);
-const CREAM: Color = Color::srgb_u8(247, 234, 206);
-const MUTED: Color = Color::srgb_u8(123, 133, 104);
+pub(crate) const INK: Color = Color::srgb_u8(48, 76, 67);
+pub(crate) const GREEN: Color = Color::srgb_u8(64, 99, 80);
+pub(crate) const CREAM: Color = Color::srgb_u8(247, 234, 206);
+pub(crate) const MUTED: Color = Color::srgb_u8(123, 133, 104);
 
 pub fn buttons(
     mut interactions: Query<
@@ -228,6 +231,8 @@ pub fn buttons(
     >,
     mut menu: ResMut<Menu>,
     session: Res<Session>,
+    mut fishing: ResMut<crate::fishing::Fishing>,
+    mouse: Res<ButtonInput<MouseButton>>,
 ) {
     for (interaction, action, mut color, base) in &mut interactions {
         *color = match interaction {
@@ -281,6 +286,12 @@ pub fn buttons(
             Action::NextRooms => {
                 menu.room_page = (menu.room_page + 1) % menu.rooms.len().div_ceil(3).max(1);
                 menu.dirty = true;
+            }
+            Action::Fishing(action) => {
+                // Rebuilt shop buttons under a held mouse must not buy repeatedly.
+                if mouse.just_pressed(MouseButton::Left) {
+                    fishing.command = Some(action);
+                }
             }
         }
     }
@@ -337,6 +348,7 @@ pub fn keyboard(
     mut chat: ResMut<Chat>,
     mut session: ResMut<Session>,
     mut window: Single<&mut Window>,
+    mut fishing: ResMut<crate::fishing::Fishing>,
 ) {
     let mut composing = if chat.open {
         !chat.preedit.is_empty()
@@ -398,6 +410,8 @@ pub fn keyboard(
             if chat.open {
                 chat.open = false;
                 chat.preedit.clear();
+            } else if menu.page == Page::Playing && (fishing.modal() || fishing.indoors) {
+                fishing.command = Some(crate::fishing::Action::Close);
             } else if menu.active.is_some() {
                 menu.active = None;
             } else {
@@ -408,6 +422,9 @@ pub fn keyboard(
             continue;
         }
         if event.logical_key == Key::Enter && !event.repeat {
+            if menu.page == Page::Playing && fishing.modal() {
+                continue;
+            }
             if composing || committed {
                 continue;
             }
@@ -536,7 +553,7 @@ fn field_limit(field: Field) -> usize {
     }
 }
 
-fn label(
+pub(crate) fn label(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
@@ -551,7 +568,7 @@ fn label(
     entity
 }
 
-fn button(
+pub(crate) fn button(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
@@ -559,7 +576,7 @@ fn button(
     subtitle: &str,
     action: Action,
     primary: bool,
-) {
+) -> Entity {
     let color = if primary {
         GREEN
     } else {
@@ -611,6 +628,7 @@ fn button(
             },
         );
     }
+    entity
 }
 
 fn field(commands: &mut Commands, parent: Entity, art: &Art, title: &str, which: Field) {
@@ -720,10 +738,11 @@ pub fn render(
         );
         let log = commands
             .spawn((
+                PlayOverlay,
                 Node {
                     position_type: PositionType::Absolute,
                     left: px(32),
-                    bottom: px(112),
+                    bottom: px(76),
                     width: px(600),
                     max_height: px(165),
                     overflow: Overflow::clip(),
@@ -738,23 +757,24 @@ pub fn render(
         commands.entity(text).insert(ChatLog);
         let bar = commands
             .spawn((
+                PlayOverlay,
                 Node {
                     position_type: PositionType::Absolute,
                     left: px(32),
                     right: px(32),
-                    bottom: px(28),
-                    min_height: px(62),
-                    padding: UiRect::axes(px(20), px(13)),
+                    bottom: px(16),
+                    min_height: px(38),
+                    padding: UiRect::axes(px(14), px(6)),
                     flex_direction: FlexDirection::Column,
-                    row_gap: px(6),
+                    row_gap: px(2),
                     ..default()
                 },
-                BackgroundColor(CREAM),
+                BackgroundColor(Color::srgba_u8(34, 53, 47, 220)),
                 BorderColor::all(Color::srgb_u8(189, 187, 150)),
             ))
             .id();
         commands.entity(root).add_child(bar);
-        let input = label(&mut commands, bar, &art, "", 24.0, INK);
+        let input = label(&mut commands, bar, &art, "", 18.0, CREAM);
         commands.entity(input).insert(ChatValue);
         let status = label(&mut commands, bar, &art, "", 14.0, MUTED);
         commands.entity(status).insert(Status);
@@ -1139,6 +1159,7 @@ pub fn refresh(
     chat: Res<Chat>,
     session: Res<Session>,
     time: Res<Time>,
+    fishing: Res<crate::fishing::Fishing>,
     actors: Query<&Actor>,
     mut text: Query<(
         &mut Text,
@@ -1149,7 +1170,15 @@ pub fn refresh(
         Option<&RoomStatus>,
     )>,
     mut borders: Query<(&Action, &mut BorderColor)>,
+    mut overlays: Query<&mut Node, With<PlayOverlay>>,
 ) {
+    for mut node in &mut overlays {
+        node.display = if fishing.modal() && !chat.open {
+            Display::None
+        } else {
+            Display::Flex
+        };
+    }
     let cursor = if (time.elapsed_secs() * 2.0) as u32 % 2 == 0 {
         "_"
     } else {
@@ -1166,7 +1195,7 @@ pub fn refresh(
                 value.into()
             }
         } else if status.is_some() {
-            if menu.page == Page::Playing && menu.status.is_empty() {
+            if menu.page == Page::Playing && menu.status.is_empty() && chat.open {
                 "ENTER CHAT / SEND   /   ESC CLOSE CHAT / LEAVE   /   80 CHARACTERS".into()
             } else {
                 menu.status.clone()
@@ -1175,7 +1204,8 @@ pub fn refresh(
             if chat.open {
                 format!("SAY HELLO  >  {}{}{}", chat.value, chat.preedit, cursor)
             } else {
-                "A D / ARROWS  WALK     SHIFT  RUN     SPACE  JUMP     ENTER  CHAT".into()
+                "A D WALK  /  SHIFT RUN  /  SPACE JUMP  /  E INTERACT  /  I SATCHEL  /  ENTER CHAT"
+                    .into()
             }
         } else if log.is_some() {
             session.log.iter().cloned().collect::<Vec<_>>().join("\n")
@@ -1211,6 +1241,47 @@ pub fn refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_held_mouse_does_not_repeat_purchases_when_shop_buttons_are_rebuilt() {
+        let mut app = App::new();
+        app.init_resource::<Menu>()
+            .init_resource::<Session>()
+            .init_resource::<crate::fishing::Fishing>()
+            .init_resource::<ButtonInput<MouseButton>>()
+            .add_systems(Update, buttons);
+        let spawn = |world: &mut World| {
+            world.spawn((
+                Interaction::Pressed,
+                Action::Fishing(crate::fishing::Action::Bait),
+                BackgroundColor(GREEN),
+                BaseColor(GREEN),
+            ));
+        };
+        spawn(app.world_mut());
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+        assert_eq!(
+            app.world_mut()
+                .resource_mut::<crate::fishing::Fishing>()
+                .command
+                .take(),
+            Some(crate::fishing::Action::Bait)
+        );
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+        spawn(app.world_mut());
+        app.update();
+        assert!(
+            app.world()
+                .resource::<crate::fishing::Fishing>()
+                .command
+                .is_none()
+        );
+    }
 
     #[test]
     fn public_host_uses_a_room_name_and_the_default_server() {

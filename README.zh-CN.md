@@ -11,7 +11,7 @@
 
 <p align="center">
   <strong>小小的镇，刚好的陪伴。</strong><br>
-  沿着像素街道散步，找到朋友，按下 Enter 打个招呼。
+  找到朋友，沿着像素街道聊聊天，再到海边钓一下午鱼。
 </p>
 
 <p align="center">
@@ -24,6 +24,7 @@
 <p align="center">
   <a href="#下载即玩">下载</a> ·
   <a href="#在小镇碰面">一起玩</a> ·
+  <a href="#去海边钓一会儿">钓鱼</a> ·
   <a href="#操作方式">操作</a> ·
   <a href="docs/DEVELOPMENT.md">开发指南</a> ·
   <a href="CHANGELOG.md">更新日志</a>
@@ -34,7 +35,7 @@
 ## 一条安静的街，几个聊得来的朋友
 
 **Yapshire** 是用 **Rust 和 Bevy** 制作的原生多人像素小游戏。
-经过咖啡馆，在街上跑跑跳跳，或者停下来聊会儿天。
+经过咖啡馆，停下来聊会儿天，或者买好渔具，到码头钓鱼。
 会动的像素小人、缓缓飘过的云、暖色窗灯和聊天气泡，组成一个可以一起待着的小地方。
 
 <p align="center">
@@ -48,18 +49,19 @@
 **[下载最新版本](https://github.com/HsiangNianian/Yapshire/releases/latest)**，完整解压后启动。
 游玩不需要安装 Rust、Node.js，也不需要 Cloudflare 账号。
 
-| 平台 | 下载 v0.2.0 | 解压后启动 |
+| 平台 | 下载 v0.3.0 | 解压后启动 |
 | --- | --- | --- |
-| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-windows-x64.zip) | 打开 `yapshire.exe` |
-| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-linux-x64.tar.gz) | 运行 `./yapshire` |
-| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
-| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
+| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-windows-x64.zip) | 打开 `yapshire.exe` |
+| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-linux-x64.tar.gz) | 运行 `./yapshire` |
+| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
+| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
 
 请解压**整个压缩包**。Windows 和 Linux 需要将 `assets/` 与程序放在一起；
 macOS 的资源已经放在应用内部。游戏内界面为英文，像素字体随包提供。
 每次发布同时提供 `SHA256SUMS` 校验文件和 `CHANGELOG.md`，更新日志与 Release Notes 同步。
 
-联机时请大家统一使用 **v0.2.0 或更新版本**：本版启用 Yapshire 公共大厅和新的局域网发现标识。
+联机时请大家统一使用 **v0.3.0**，确保地图与活动一致。自建服务器也需要更新配套 Worker；
+内置公共服务器已支持商店位置和钓鱼姿态同步。
 
 <details>
 <summary><strong>各平台说明</strong></summary>
@@ -94,15 +96,46 @@ macOS 的资源已经放在应用内部。游戏内界面为英文，像素字�
 房间公开，无账号或密码。局域网自动发现需要处于同一广播网络；发现被阻止时可手动输入地址。
 演示服务器最多容纳 40 个房间。房间生命周期、端口、代理和连接限制见[联网说明](docs/DEVELOPMENT.md#networking)。
 
+## 去海边钓一会儿
+
+**上方 v0.3.0 下载包已包含钓鱼、渔具店与像素背包。**
+
+沿街向右走，跟着路牌找到 **Tide & Tackle** 渔具店。在门口按 **E** 进入，
+走到 Mara 的柜台前再按 **E** 购物。新昵称拥有 **100 枚金币**：
+可重复使用的竹鱼竿 **45 枚**、鱼钩 **15 枚**、五条鱼饵 **10 枚**。
+点击商品或按 **1 / 2 / 3** 购买。
+
+继续向右走到滨海码头，按 **E** 抛竿，每次消耗一条鱼饵。
+出现 **BITE!** 时，在倒计时结束前按一下 **Space** 提竿；
+随后按住 **Space** 收线，松开降低张力。在鱼逃走或鱼线绷断前填满收获进度。
+
+按 **I** 打开像素背包，查看渔具、鱼饵、金币和鱼的图标、数量与装备状态；
+商店也会展示对应的像素商品。钓鱼时能看到抛线、浮漂、水花和游鱼，
+水下小视窗会随着收线显示鱼逐渐靠近。
+
+钓到的沙丁鱼、鲭鱼、海鲈和金鲷可以带回柜台，
+选择 **Sell catch** 或按 **4** 出售。已经拥有鱼竿和鱼钩，
+却没有鱼饵、没有可卖的鱼且金币不足 10 枚时，店主会赠送一条应急鱼饵。
+
+钱包、渔具、鱼饵和收获按昵称自动保存在本机，使用相同昵称即可继续，
+不同电脑之间不共享存档。使用更新后的客户端和服务器时，可以在店里看到朋友，
+也可以看到其他玩家在码头垂钓。
+
+街道路面、海岸、码头和渔具店使用 **16 × 16 Tilemap**，海水采用动画图块。
+可以用 Tiled 打开随附的 `.tmj` 地图，修改后重启游戏即可查看布局。
+当前碰撞和交互位置仍固定，具体限制见[地图编辑说明](docs/DEVELOPMENT.md#tilemaps)。
+
 ## 操作方式
 
 | 按键 | 功能 |
 | --- | --- |
 | A / D 或方向键 ← / → | 走动 |
 | Shift | 跑步 |
-| Space | 跳跃 |
+| Space | 跳跃 / 咬钩时提竿 / 按住收线 |
+| E | 进出渔具店、在柜台购物、在码头抛竿 |
+| I | 打开 / 关闭像素背包 |
 | Enter | 打开聊天 / 发送消息 |
-| Escape | 关闭聊天、退出输入框或离开房间 |
+| Escape | 关闭当前面板或取消抛竿、离开商店、关闭聊天或离开房间 |
 | Tab | 切换输入框 |
 | Ctrl+A / Ctrl+V / Ctrl+C | 输入框内全选、粘贴或复制 |
 | F11 | 固定窗口 / 全屏切换 |

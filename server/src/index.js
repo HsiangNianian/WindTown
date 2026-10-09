@@ -48,7 +48,7 @@ export class Room extends DurableObject {
     let id;
     do { id = crypto.getRandomValues(new Uint32Array(1))[0]; }
     while (peers.some((ws) => ws.deserializeAttachment().player.id === id));
-    const player = { id, name, x: 244 + peers.length * 48, y: 0, moving: false, facing: false };
+    const player = { id, name, x: 244 + peers.length * 48, y: 0, moving: false, facing: false, indoors: false, fishing: false };
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     this.ctx.acceptWebSocket(server);
@@ -82,8 +82,11 @@ export class Room extends DurableObject {
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y) || typeof msg.moving !== "boolean" || typeof msg.facing !== "boolean") {
         ws.close(1007, "Invalid movement"); return;
       }
+      if ((msg.indoors !== undefined && typeof msg.indoors !== "boolean") || (msg.fishing !== undefined && typeof msg.fishing !== "boolean")) {
+        ws.close(1007, "Invalid activity"); return;
+      }
       // ponytail: positions are client-driven for this social toy; use authoritative physics for competitive play.
-      Object.assign(state.player, { x: Math.max(12, Math.min(1428, msg.x)), y: Math.max(0, Math.min(96, msg.y)), moving: msg.moving, facing: msg.facing });
+      Object.assign(state.player, { x: Math.max(12, Math.min(1428, msg.x)), y: Math.max(0, Math.min(96, msg.y)), moving: msg.moving, facing: msg.facing, indoors: msg.indoors ?? false, fishing: (msg.fishing ?? false) && !msg.indoors });
       this.broadcast({ type: "moved", player: state.player }, ws);
     } else if (msg.type === "chat" && typeof msg.text === "string") {
       const text = clean(msg.text, 80);
