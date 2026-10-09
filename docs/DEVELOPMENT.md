@@ -1,7 +1,7 @@
 # Development guide
 
 A small, native Rust + Bevy multiplayer pixel town. Walk past the coffee shop,
-meet your friends, and press **Enter** to talk. The source checkout supports English
+meet your friends, and press **Enter** to talk. Yapshire supports English
 and Simplified Chinese; the bundled pixel font includes both, so no system font
 installation is required.
 
@@ -114,14 +114,13 @@ Language defaults to English and saves in `settings.json` in the platform's
 normal Yapshire data directory. `YAPSHIRE_SETTINGS_DIR` overrides that directory.
 Missing Chinese translations fall back to English. See the
 [translation guide](TRANSLATING.md) for the modular catalogs, placeholders and
-native acceptance checks. The current v0.3.0 downloads predate this feature.
+native acceptance checks. Settings and language selection are included in v0.4.0.
 
 ## In-game map editor
 
-The source checkout includes **04 MAP EDITOR** on the main menu. Press **4** or
+Yapshire v0.4.0 includes **04 MAP EDITOR** on the main menu. Press **4** or
 **F2** when no text field is selected. This is an offline editing screen; return
-to the main menu from a room before opening it. The current v0.3.0 downloads
-predate this feature.
+to the main menu from a room before opening it.
 
 Choose **Town** or **Shop**, select one of the five layers (listed front to back),
 and pick a tile from the three-page Harbor palette. Each map keeps its own draft
@@ -428,18 +427,18 @@ root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.3.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.4.0 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: prepare v0.3.0"
+git commit -m "chore: release v0.4.0"
 # Once the release commit is on main:
-git tag -a v0.3.0 -m "Release v0.3.0"
-git push origin main v0.3.0
+git tag -a v0.4.0 -m "Release v0.4.0"
+git push --atomic origin main v0.4.0
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.3.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.4.0"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 

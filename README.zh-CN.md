@@ -49,19 +49,19 @@
 **[下载最新版本](https://github.com/HsiangNianian/Yapshire/releases/latest)**，完整解压后启动。
 游玩不需要安装 Rust、Node.js，也不需要 Cloudflare 账号。
 
-| 平台 | 下载 v0.3.0 | 解压后启动 |
+| 平台 | 下载 v0.4.0 | 解压后启动 |
 | --- | --- | --- |
-| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-windows-x64.zip) | 打开 `yapshire.exe` |
-| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-linux-x64.tar.gz) | 运行 `./yapshire` |
-| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
-| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
+| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-windows-x64.zip) | 打开 `yapshire.exe` |
+| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-linux-x64.tar.gz) | 运行 `./yapshire` |
+| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
+| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
 
 请解压**整个压缩包**。Windows 和 Linux 需要将 `assets/` 与程序放在一起；
 macOS 的资源已经放在应用内部。像素字体随包提供，包含中英文字形。
 每次发布同时提供 `SHA256SUMS` 校验文件和 `CHANGELOG.md`，更新日志与 Release Notes 同步。
 
-联机时请大家统一使用 **v0.3.0**，确保地图与活动一致。自建服务器也需要更新配套 Worker；
-内置公共服务器已支持商店位置和钓鱼姿态同步。
+联机时请大家统一使用 **v0.4.0**，确保地图与活动一致。联机协议与 v0.3.0 保持兼容，
+已有的 v0.3.0 Worker 和内置公共服务器都支持本次更新。
 
 <details>
 <summary><strong>各平台说明</strong></summary>
@@ -98,7 +98,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ## 去海边钓一会儿
 
-**上方 v0.3.0 下载包已包含钓鱼、渔具店与像素背包。**
+**上方 v0.4.0 下载包已包含钓鱼、渔具店与像素背包。**
 
 沿街向右走，跟着路牌找到 **Tide & Tackle** 渔具店。在门口按 **E** 进入，
 走到 Mara 的柜台前再按 **E** 购物。新昵称拥有 **100 枚金币**：
@@ -127,7 +127,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ## 编辑自己的小镇
 
-**源码版新增：**在主菜单选择 **04 MAP EDITOR**，或在没有选中输入框时按 **4 / F2**，
+**v0.4.0 新增：**在主菜单选择 **04 MAP EDITOR / 地图编辑器**，或在没有选中输入框时按 **4 / F2**，
 即可编辑小镇海岸与渔具店内景。选择图层和图块后，用画笔、橡皮、填充或取色工具修改地图，
 支持撤销重做、图块翻转、图层显隐、网格、缩放和平移。
 工具栏采用像素图标，带快捷键角标与悬停说明；点击眼睛图标切换图层显隐。
@@ -140,10 +140,9 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ## 设置与语言
 
-**源码版新增：**主菜单、游戏和地图编辑器中都可点击像素齿轮 **Settings / 设置**，
+**v0.4.0 新增：**主菜单、游戏和地图编辑器中都可点击像素齿轮 **Settings / 设置**，
 即时切换 **English / 简体中文**，重启后会记住选择。缺失的翻译默认显示英文。
 文案按功能拆分在 `assets/locales/` 下，翻译方式见[翻译指南](docs/TRANSLATING.md)。
-现有 v0.3.0 下载包尚未包含此功能。
 
 ## 操作方式
 

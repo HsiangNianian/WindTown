@@ -51,21 +51,21 @@ make a place to spend a little time together.
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.3.0 | After extracting |
+| Platform | Download v0.4.0 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-windows-x64.zip) | Open `yapshire.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-linux-x64.tar.gz) | Run `./yapshire` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-x64.tar.gz) | Open `Yapshire.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The bundled pixel font supports
 English and Simplified Chinese. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
-For multiplayer, have everyone use **v0.3.0** for the same maps and activities.
-Self-hosted servers also need the matching Worker update; the built-in public
-server already supports shop locations and fishing poses.
+For multiplayer, have everyone use **v0.4.0** for the same maps and activities.
+The multiplayer protocol is unchanged from v0.3.0, so existing v0.3.0 Workers
+and the built-in public server also support this release.
 
 <details>
 <summary><strong>Platform notes</strong></summary>
@@ -113,7 +113,7 @@ for room lifetimes, ports, proxies, and connection limits.
 
 ## An afternoon of fishing
 
-**Included in the v0.3.0 downloads above.**
+**Included in the v0.4.0 downloads above.**
 
 Walk east past the street sign to **Tide & Tackle**. Press **E** at the door to
 enter, walk up to Mara's counter, and press **E** again to shop. A new nickname
@@ -147,7 +147,7 @@ for the demo's fixed collision and interaction limits.
 
 ## Make the town your own
 
-**New in the source checkout:** choose **04 MAP EDITOR** on the main menu (or
+**New in v0.4.0:** choose **04 MAP EDITOR** on the main menu (or
 press **4 / F2** with no text field selected). Edit the town and coast or the
 tackle-shop interior without leaving the game. Pick a layer and tile, then paint,
 erase, fill or pick an existing tile. Undo/redo, tile flips, layer visibility,
@@ -164,12 +164,11 @@ See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
 
 ## Settings and language
 
-**New in the source checkout:** open the pixel gear **Settings** button from the
+**New in v0.4.0:** open the pixel gear **Settings** button from the
 menu, game or map editor. Switch between **English** and **简体中文** immediately;
 your choice is remembered after restarting. Missing translations fall back to
 English. Translation files are split by feature under `assets/locales/`; see the
-[translation guide](docs/TRANSLATING.md) to contribute. Current v0.3.0 downloads
-predate this feature.
+[translation guide](docs/TRANSLATING.md) to contribute.
 
 ## Controls
 

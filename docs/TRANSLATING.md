@@ -1,6 +1,6 @@
 # Translating Yapshire
 
-The source checkout supports English (`en`, the default) and Simplified Chinese
+Yapshire v0.4.0 supports English (`en`, the default) and Simplified Chinese
 (`zh-CN`). Open the pixel gear **Settings** button from the menu, game or map
 editor. Language changes take effect immediately and are saved on this computer.
 

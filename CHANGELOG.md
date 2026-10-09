@@ -5,6 +5,43 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [v0.4.0] - 2026-10-10
+
+### New Features
+
+- Open the in-game map editor from the main menu to customize the town, coast
+  and tackle-shop interior across five layers. Paint, erase, fill and pick tiles;
+  undo or redo strokes, flip tiles, toggle layers, zoom and pan.
+- Use original pixel icons with shortcut badges and hover descriptions for map
+  tools, layer visibility and settings. Grid and landmark guides help align edits.
+- Save maps locally and apply them immediately. Reopen them in Tiled through
+  **Map files**, restore bundled layouts as drafts, and choose to save or discard
+  unsaved changes before leaving. Saves keep backups and detect external edits.
+- Open the pixel gear **Settings** button from menus, gameplay or the editor to
+  switch between English and Simplified Chinese immediately. The game remembers
+  the selected language after restarting.
+- Translate 239 interface messages through six JSON modules per language.
+  Missing, blank or invalid translations fall back to English; named placeholders
+  preserve player text. See `docs/TRANSLATING.md` to contribute translations.
+
+### Fixes and Polish
+
+- Keep nicknames, chat drafts and unsaved map edits intact when changing language.
+  Block gameplay and editor input while settings are open and prevent the closing
+  click from affecting controls behind the panel.
+- Validate local map data before loading, preserve invalid files for recovery,
+  and release old runtime tile entities when applying a new layout.
+
+### Notes
+
+- Map edits stay on the local computer. Collision, interaction points and NPC
+  positions remain fixed, and custom maps are not synchronized between players.
+- The multiplayer protocol is unchanged from v0.3.0; existing v0.3.0 Workers
+  remain compatible. This release does not require a server redeployment.
+- Native macOS checks cover editing, pixel controls, language switching and
+  preference recovery after a restart. Windows and macOS builds remain unsigned;
+  macOS builds are not notarized.
+
 ## [v0.3.0] - 2026-10-09
 
 ### New Features
@@ -64,3 +101,5 @@ and commits it after all platform archives have been uploaded and verified.
 [v0.2.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.1.0...v0.2.0
 
 [v0.3.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.2.0...v0.3.0
+
+[v0.4.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.3.0...v0.4.0
