@@ -51,7 +51,11 @@ pub fn drive(
     window: Single<(Entity, &Window)>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if smoke.mode.is_empty() || smoke.mode.starts_with("fishing") {
+    if smoke.mode.is_empty()
+        || smoke.mode.starts_with("fishing")
+        || smoke.mode.starts_with("editor")
+        || smoke.mode.starts_with("i18n")
+    {
         return;
     }
     let now = time.elapsed_secs();
@@ -232,7 +236,7 @@ pub fn drive(
         7 if now - smoke.since > 1.0
             && ["Hello from Rowan!", "Hello from June!"]
                 .iter()
-                .all(|s| session.log.iter().any(|line| line.contains(s))) =>
+                .all(|s| session.log.iter().any(|line| line.to_string().contains(s))) =>
         {
             capture(&mut commands, &smoke.mode, "chat");
             info!(

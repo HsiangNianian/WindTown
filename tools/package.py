@@ -41,7 +41,8 @@ def package(root, target):
                      "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
                      "assets/maps/harbor.tsj", "assets/maps/harbor.png",
                      "assets/fishing/items.png", "assets/fishing/frame.png",
-                     "assets/fishing/slot.png", "assets/fishing/water.png"]:
+                     "assets/fishing/slot.png", "assets/fishing/water.png",
+                     "assets/ui/editor-icons.png"]:
         if not (executable_dir / required).is_file():
             raise ValueError(f"Missing bundled asset: {required}")
     if mac:

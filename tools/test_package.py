@@ -18,7 +18,8 @@ class PackagingTests(unittest.TestCase):
                          "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
                          "assets/maps/harbor.tsj", "assets/maps/harbor.png",
                          "assets/fishing/items.png", "assets/fishing/frame.png",
-                         "assets/fishing/slot.png", "assets/fishing/water.png"]:
+                         "assets/fishing/slot.png", "assets/fishing/water.png",
+                         "assets/ui/editor-icons.png"]:
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"test fixture")
@@ -47,6 +48,7 @@ class PackagingTests(unittest.TestCase):
                 self.assertIn(prefix + "README.zh-CN.md", names)
                 self.assertTrue(any(name.endswith("assets/fonts/fusion-pixel.ttf") for name in names))
                 self.assertTrue(any(name.endswith("assets/fonts/OFL.txt") for name in names))
+                self.assertTrue(any(name.endswith("assets/ui/editor-icons.png") for name in names))
                 for asset in ["town.tmj", "tackle-shop.tmj", "harbor.tsj", "harbor.png"]:
                     self.assertTrue(any(name.endswith("assets/maps/" + asset) for name in names))
                 for asset in ["items.png", "frame.png", "slot.png", "water.png"]:

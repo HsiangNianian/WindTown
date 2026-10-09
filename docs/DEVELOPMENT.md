@@ -1,8 +1,9 @@
 # Development guide
 
 A small, native Rust + Bevy multiplayer pixel town. Walk past the coffee shop,
-meet your friends, and press **Enter** to talk. All interface text is English;
-the pixel font is bundled, so no system font installation is required.
+meet your friends, and press **Enter** to talk. The source checkout supports English
+and Simplified Chinese; the bundled pixel font includes both, so no system font
+installation is required.
 
 ## Run
 
@@ -101,6 +102,93 @@ between players. Movement packets synchronize the shop area and fishing pose;
 both the LAN relay and Worker accept older packets with these optional flags absent.
 Update a self-hosted Worker together with the client to show the new area and poses.
 
+## Settings and language
+
+The pixel gear **Settings** button is available in the menu, game and map editor.
+Choose **English** or **简体中文**; the interface updates immediately, including
+existing status messages, without clearing chat fields or map drafts. Closing
+settings returns to the same screen. Movement, fishing and editing input pause
+while the settings panel is open; the room connection remains active.
+
+Language defaults to English and saves in `settings.json` in the platform's
+normal Yapshire data directory. `YAPSHIRE_SETTINGS_DIR` overrides that directory.
+Missing Chinese translations fall back to English. See the
+[translation guide](TRANSLATING.md) for the modular catalogs, placeholders and
+native acceptance checks. The current v0.3.0 downloads predate this feature.
+
+## In-game map editor
+
+The source checkout includes **04 MAP EDITOR** on the main menu. Press **4** or
+**F2** when no text field is selected. This is an offline editing screen; return
+to the main menu from a room before opening it. The current v0.3.0 downloads
+predate this feature.
+
+Choose **Town** or **Shop**, select one of the five layers (listed front to back),
+and pick a tile from the three-page Harbor palette. Each map keeps its own draft
+and up to 100 undo steps while switching between them. A drag is one undo step.
+The tool strip uses original 16px pixel icons, with B/E/I/F shortcut badges and
+hover descriptions. The active tool's name stays visible beside the strip;
+unavailable undo/redo and zoom controls are dimmed. Eye icons toggle layer visibility.
+
+| Input / control | Action |
+| --- | --- |
+| Left mouse | Paint, erase, fill or pick with the selected tool |
+| Right mouse | Erase from the selected layer |
+| B / E / I / F | Brush / eraser / eyedropper / flood fill |
+| Alt + left mouse | Pick a tile from the selected layer |
+| H / V / Swap button | Horizontal / vertical / diagonal tile flip |
+| Ctrl/Cmd+Z | Undo |
+| Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y | Redo |
+| Ctrl/Cmd+S / Save | Save and immediately apply the current map |
+| - / + | Zoom between 1x, 2x and 3x |
+| Arrow keys / middle mouse drag | Pan the canvas |
+| Mouse wheel over the canvas | Pan horizontally |
+| G / Grid | Toggle the grid |
+| Guides | Toggle fixed gameplay anchors |
+| Layer eye icon | Show or hide a layer (saved in the map) |
+| Reload | Read the current map from disk; confirm before discarding a draft |
+| Original | Restore the bundled layout as an undoable draft; save to keep it |
+| Done / Escape / window close | Leave; unsaved drafts offer save, discard or cancel |
+
+Gold guides mark the existing ground at Tiled y = 208, shop door, indoor exit,
+counter, casting area and pier end. Artwork edits do **not** change collision,
+map size, interactions, NPC positions or the fixed street background illustration.
+Hidden layers cannot be painted until shown again. The editor displays still
+tile previews; the game's water animation continues to use the tileset metadata.
+
+Custom maps are stored under the platform's normal Yapshire data directory in a
+`maps/` subfolder (on macOS, `~/Library/Application Support/Yapshire/maps`).
+`YAPSHIRE_MAP_DIR` overrides that folder independently of fishing saves. **Map
+files** opens it. Saving also copies `harbor.tsj` and `harbor.png` there if absent
+so the `.tmj` files can be opened in Tiled; the game continues to use its bundled
+tileset artwork. Save files preserve Tiled metadata and flip flags. Writes use
+a temporary file and keep the previous saved bytes as `.tmj.bak`. A file changed
+by another editor must be reloaded before saving; failures retain the draft.
+
+Valid local layouts load automatically on startup. Invalid local files fall back
+to the bundled layout and show a message in the editor. An explicit repair/save
+preserves the invalid file as a backup. To remove an override completely, close
+the game and move its `.tmj` out of the saved map folder. Bundled assets are never
+overwritten by the editor. Local maps are not distributed to other players; share
+the same map files manually if a group wants matching layouts.
+
+For native acceptance, use fresh isolated map and settings folders with a debug
+build. This keeps the check in English regardless of your saved language:
+
+```sh
+cargo build --locked
+YAPSHIRE_SETTINGS_DIR="$PWD/artifacts/editor-check/settings" \
+YAPSHIRE_MAP_DIR="$PWD/artifacts/editor-check/maps" YAPSHIRE_SMOKE=editor ./target/debug/yapshire
+YAPSHIRE_SETTINGS_DIR="$PWD/artifacts/editor-check/settings" \
+YAPSHIRE_MAP_DIR="$PWD/artifacts/editor-check/maps" YAPSHIRE_SMOKE=editor-reload ./target/debug/yapshire
+```
+
+The opt-in driver exercises real editor systems and UI actions: painting and a
+continuous stroke, undo/redo, saving into runtime tilemaps, repeated-save cleanup,
+shop editing, unsaved changes, fullscreen pointer mapping, icon hover/click,
+layer visibility and startup reload.
+Screenshots go to `artifacts/editor-*.png`; input is injected only into this app.
+
 ## Tilemaps
 
 The street floor, quay, animated water, timber pier, tackle-shop exterior and
@@ -117,8 +205,11 @@ Open these files directly in [Tiled](https://www.mapeditor.org/):
 | `assets/maps/harbor.tsj` | Shared 16 × 16 tiles and water animations |
 | `assets/maps/harbor.png` | The tileset image |
 
-Maps load from the same runtime `assets/` folder as the artwork. Save a map and
-restart the game to see layout changes; rebuilding Rust is unnecessary. Keep
+Bundled maps load from the same runtime `assets/` folder as the artwork, with
+valid locally saved editor maps taking precedence. Save in the in-game editor
+to apply immediately, or use **Reload** after changing its saved file in Tiled.
+Changes to bundled maps appear after restart when no local override exists;
+rebuilding Rust is unnecessary. Keep
 the existing five layers in order, their original dimensions and offsets, and
 use uncompressed JSON tile arrays. Empty cells, hidden layers and Tiled tile
 flips are supported. Invalid sizes, tile IDs and animation ranges are rejected
@@ -283,7 +374,8 @@ lettering is stored as SVG paths, so Chinese text needs no installed fonts.
 - Original 16-pixel terrain tiles, four 24 × 32 characters with six animation
   frames each, layered scenery, drifting clouds, and fireflies.
 - [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font), 12px monospaced
-  Latin variant, release 2026.09.25. Font and upstream licenses are in `assets/fonts/`.
+  Latin variant with CJK coverage, release 2026.09.25. Font and upstream licenses
+  are in `assets/fonts/`.
 - WebSocket architecture follows Cloudflare's
   [Durable Object hibernation API](https://developers.cloudflare.com/durable-objects/examples/websocket-hibernation-server/).
 
@@ -292,11 +384,13 @@ The checked-in PNGs are ready to run. To regenerate the original art:
 ```sh
 uv run --with Pillow tools/draw_assets.py
 uv run --with Pillow tools/draw_fishing.py
+uv run --with Pillow tools/draw_editor_icons.py
 ```
 
-Native GPU gameplay is verified on Linux. GitHub Actions builds and tests Windows,
-Linux, and both macOS architectures. GUI play on Windows/macOS and sessions between
-two separate physical LAN machines still need manual verification.
+Native GPU gameplay is verified on Linux, with native editor and language UI
+checks also run on macOS. GitHub Actions builds and tests Windows, Linux, and both
+macOS architectures. GUI play on Windows and sessions between two separate
+physical LAN machines still need manual verification.
 
 ## Cross-platform CI
 

@@ -1,6 +1,7 @@
 use crate::{
     Session,
     game::Actor,
+    i18n::{Message, tr},
     ui::{Chat, Menu, Page},
 };
 use bevy::prelude::*;
@@ -16,10 +17,10 @@ const ROD_PRICE: u32 = 45;
 const HOOK_PRICE: u32 = 15;
 const BAIT_PRICE: u32 = 10;
 pub const FISH: [(&str, u32); 4] = [
-    ("Sardine", 8),
-    ("Mackerel", 14),
-    ("Sea bass", 24),
-    ("Golden bream", 40),
+    ("fishing.fish.sardine", 8),
+    ("fishing.fish.mackerel", 14),
+    ("fishing.fish.bass", 24),
+    ("fishing.fish.bream", 40),
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -56,17 +57,17 @@ pub enum Action {
 }
 
 impl Progress {
-    pub fn buy(&mut self, item: Action) -> Result<String, &'static str> {
+    pub fn buy(&mut self, item: Action) -> Result<Message, Message> {
         let (price, description) = match item {
-            Action::Rod if !self.rod => (ROD_PRICE, "Bamboo rod equipped."),
-            Action::Hook if !self.hook => (HOOK_PRICE, "Barbless hook equipped."),
-            Action::Rod | Action::Hook => return Err("You already own this tackle."),
-            Action::Bait if self.bait <= 994 => (BAIT_PRICE, "Five worms added to your bait tin."),
-            Action::Bait => return Err("Your bait tin is full."),
-            _ => return Err("Choose some tackle first."),
+            Action::Rod if !self.rod => (ROD_PRICE, tr("fishing.notice.rod")),
+            Action::Hook if !self.hook => (HOOK_PRICE, tr("fishing.notice.hook")),
+            Action::Rod | Action::Hook => return Err(tr("fishing.notice.owned")),
+            Action::Bait if self.bait <= 994 => (BAIT_PRICE, tr("fishing.notice.bait")),
+            Action::Bait => return Err(tr("fishing.notice.bait_full")),
+            _ => return Err(tr("fishing.notice.choose")),
         };
         if self.coins < price {
-            return Err("Not enough coins. Sell your catch at the counter.");
+            return Err(tr("fishing.notice.coins"));
         }
         self.coins -= price;
         match item {
@@ -78,15 +79,15 @@ impl Progress {
         Ok(description.into())
     }
 
-    pub fn cast(&mut self) -> Result<(), &'static str> {
+    pub fn cast(&mut self) -> Result<(), Message> {
         if !self.rod || !self.hook {
-            return Err("Buy a rod and a hook at Tide & Tackle first.");
+            return Err(tr("fishing.notice.need_tackle"));
         }
         if self.bait == 0 {
-            return Err("Out of bait. Visit Tide & Tackle for more worms.");
+            return Err(tr("fishing.notice.no_bait"));
         }
         if self.catches.iter().any(|&count| count >= 999) {
-            return Err("Your creel is full. Sell your catch first.");
+            return Err(tr("fishing.notice.full"));
         }
         self.bait -= 1;
         Ok(())
@@ -100,15 +101,15 @@ impl Progress {
             .sum()
     }
 
-    pub fn sell(&mut self) -> Result<u32, &'static str> {
+    pub fn sell(&mut self) -> Result<u32, Message> {
         let value = self.value();
         if value == 0 {
-            return Err("Your creel is empty. Try the pier to the east.");
+            return Err(tr("fishing.notice.empty"));
         }
         self.coins = self
             .coins
             .checked_add(value)
-            .ok_or("Your wallet is full.")?;
+            .ok_or(tr("fishing.notice.wallet_full"))?;
         self.catches = [0; 4];
         Ok(value)
     }
@@ -117,23 +118,8 @@ impl Progress {
 pub fn profile_path(name: &str) -> io::Result<PathBuf> {
     let base = if let Some(path) = std::env::var_os("YAPSHIRE_SAVE_DIR") {
         PathBuf::from(path)
-    } else if cfg!(target_os = "windows") {
-        std::env::var_os("APPDATA")
-            .map(PathBuf::from)
-            .ok_or_else(|| io::Error::other("APPDATA is not available"))?
-            .join("Yapshire")
-    } else if cfg!(target_os = "macos") {
-        std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| io::Error::other("HOME is not available"))?
-            .join("Library/Application Support/Yapshire")
-    } else if let Some(path) = std::env::var_os("XDG_DATA_HOME") {
-        PathBuf::from(path).join("yapshire")
     } else {
-        std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .ok_or_else(|| io::Error::other("HOME is not available"))?
-            .join(".local/share/yapshire")
+        crate::paths::data_dir()?
     };
     // Hex keeps arbitrary nicknames inside the save directory on every platform.
     let name = name
@@ -235,7 +221,7 @@ pub enum Stage {
     Reeling(Fight),
     Result {
         fish: Option<usize>,
-        message: String,
+        message: Message,
     },
 }
 
@@ -255,11 +241,11 @@ pub struct Fishing {
     pub indoors: bool,
     pub command: Option<Action>,
     pub dirty: bool,
-    pub notice: String,
+    pub notice: Message,
     pub anim_time: f32,
     pub(crate) notice_time: f32,
     profile: Option<PathBuf>,
-    pub(crate) save_error: String,
+    pub(crate) save_error: Message,
     loaded_for: String,
     was_playing: bool,
 }
@@ -273,11 +259,11 @@ impl Default for Fishing {
             indoors: false,
             command: None,
             dirty: true,
-            notice: String::new(),
+            notice: Message::default(),
             anim_time: 0.0,
             notice_time: 0.0,
             profile: None,
-            save_error: String::new(),
+            save_error: Message::default(),
             loaded_for: String::new(),
             was_playing: false,
         }
@@ -296,7 +282,7 @@ impl Fishing {
         self.panel != Panel::None || !matches!(self.stage, Stage::Idle)
     }
 
-    fn say(&mut self, message: impl Into<String>) {
+    fn say(&mut self, message: impl Into<Message>) {
         self.notice = message.into();
         self.notice_time = 6.0;
     }
@@ -308,14 +294,14 @@ impl Fishing {
         if let Some(path) = &self.profile {
             if let Err(error) = save_progress(path, &self.progress) {
                 warn!("Cannot save fishing progress: {error}");
-                self.save_error = "Progress could not be saved. Check the save folder.".into();
+                self.save_error = tr("fishing.notice.save_failed");
             }
         }
     }
 
     fn cancel(&mut self) {
         if self.active() {
-            self.say("Cast cancelled. The worm was already used.");
+            self.say(tr("fishing.notice.cancelled"));
         }
         self.stage = Stage::Idle;
         self.panel = Panel::None;
@@ -324,6 +310,7 @@ impl Fishing {
 }
 
 pub fn update(
+    settings: Res<crate::settings::Settings>,
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     menu: Res<Menu>,
@@ -353,6 +340,10 @@ pub fn update(
         }
         return;
     }
+    if settings.blocks_input() {
+        fishing.command = None;
+        return;
+    }
     if fishing.loaded_for != menu.name {
         fishing.loaded_for = menu.name.clone();
         match profile_path(&menu.name).and_then(|path| load_progress(&path).map(|p| (path, p))) {
@@ -360,12 +351,12 @@ pub fn update(
                 fishing.profile = Some(path);
                 fishing.progress = progress;
                 fishing.save_error.clear();
-                fishing.say("Welcome! Find Tide & Tackle east of the coffee shop.");
+                fishing.say(tr("fishing.notice.welcome"));
             }
             Err(error) => {
                 warn!("Cannot load fishing progress: {error}");
                 fishing.profile = None;
-                fishing.save_error = "Save unavailable. Purchases and fishing are disabled.".into();
+                fishing.save_error = tr("fishing.notice.load_failed");
             }
         }
         fishing.dirty = true;
@@ -406,7 +397,7 @@ pub fn update(
                 fishing
                     .progress
                     .sell()
-                    .map(|n| format!("Sold your catch for {n} coins. Thank you!"))
+                    .map(|n| tr("fishing.notice.sold").arg("coins", n.to_string()))
             } else {
                 fishing.progress.buy(action)
             };
@@ -434,7 +425,7 @@ pub fn update(
         if !fishing.indoors && (x - SHOP_DOOR).abs() < 28.0 {
             fishing.indoors = true;
             actor.teleport(Vec2::new(SHOP_EXIT + 32.0, 0.0));
-            fishing.say("Welcome to Tide & Tackle. Walk up to the counter.");
+            fishing.say(tr("fishing.notice.shop"));
         } else if fishing.indoors && (x - SHOP_EXIT).abs() < 32.0 {
             fishing.indoors = false;
             actor.teleport(Vec2::new(SHOP_DOOR, 0.0));
@@ -448,7 +439,7 @@ pub fn update(
                 && fishing.save_error.is_empty()
             {
                 fishing.progress.bait = 1;
-                fishing.say("A worm on the house. Everyone deserves another cast.");
+                fishing.say(tr("fishing.notice.free_bait"));
                 fishing.save();
             }
         } else if !fishing.indoors && x >= PIER_START && fishing.save_error.is_empty() {
@@ -491,15 +482,15 @@ pub fn update(
                 fishing.stage = Stage::Reeling(Fight::new(fish));
                 fishing.dirty = true;
             } else if *left <= 0.0 {
-                result = Some((false, 0, "Too late! The fish took the bait."));
+                result = Some((false, 0, tr("fishing.notice.late")));
             }
         }
         Stage::Reeling(fight) => {
             if let Some(won) = fight.tick(dt, reeling) {
                 let reason = if fight.tension >= 1.0 {
-                    "Too much tension! The fish escaped."
+                    tr("fishing.notice.tension")
                 } else {
-                    "The line went slack. The fish escaped."
+                    tr("fishing.notice.slack")
                 };
                 result = Some((won, fight.fish, reason));
             }
@@ -510,10 +501,9 @@ pub fn update(
         let message = if won {
             fishing.progress.catches[fish] += 1;
             fishing.save();
-            format!(
-                "{} landed! Worth {} coins at the shop.",
-                FISH[fish].0, FISH[fish].1
-            )
+            tr("fishing.notice.landed")
+                .arg("fish", tr(FISH[fish].0))
+                .arg("coins", FISH[fish].1.to_string())
         } else {
             reason.into()
         };

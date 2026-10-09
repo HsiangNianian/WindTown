@@ -1,0 +1,11 @@
+{
+  "button": "设置",
+  "title": "设置",
+  "language": "语言",
+  "hint": "选择你熟悉的语言。",
+  "instant": "切换后立即生效。",
+  "saved": "已保存本机语言偏好。",
+  "save_failed": "语言已切换，但未能保存偏好：{error}",
+  "load_failed": "无法读取设置，已使用英文。",
+  "close": "完成"
+}

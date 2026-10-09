@@ -59,8 +59,8 @@ account are not needed to play.
 | macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.3.0/yapshire-0.3.0-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
-executable; on macOS, the assets are inside the app. The interface is in English
-and the pixel font is included. Every release also includes `SHA256SUMS` and
+executable; on macOS, the assets are inside the app. The bundled pixel font supports
+English and Simplified Chinese. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
 For multiplayer, have everyone use **v0.3.0** for the same maps and activities.
@@ -144,6 +144,32 @@ The street floor, coast, pier and tackle shop use 16 × 16 tilemaps, including
 animated water. Edit the shipped `.tmj` maps in Tiled and restart the game to see
 your layout changes. See the [map editing guide](docs/DEVELOPMENT.md#tilemaps)
 for the demo's fixed collision and interaction limits.
+
+## Make the town your own
+
+**New in the source checkout:** choose **04 MAP EDITOR** on the main menu (or
+press **4 / F2** with no text field selected). Edit the town and coast or the
+tackle-shop interior without leaving the game. Pick a layer and tile, then paint,
+erase, fill or pick an existing tile. Undo/redo, tile flips, layer visibility,
+grid guides, zoom and panning are included.
+Pixel tool icons have shortcut badges and hover descriptions; eye icons toggle layers.
+
+**Save** applies the layout immediately and keeps a local copy for your next
+launch. **Map files** opens the saved `.tmj` files and their Tiled-compatible
+tileset. Original bundled maps stay intact; **Original** restores one as an
+undoable draft. Leaving with unsaved edits asks whether to save or discard them.
+These changes are local to your computer. Gold guides show the fixed walking
+surface and interaction points; editing artwork does not move them.
+See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
+
+## Settings and language
+
+**New in the source checkout:** open the pixel gear **Settings** button from the
+menu, game or map editor. Switch between **English** and **简体中文** immediately;
+your choice is remembered after restarting. Missing translations fall back to
+English. Translation files are split by feature under `assets/locales/`; see the
+[translation guide](docs/TRANSLATING.md) to contribute. Current v0.3.0 downloads
+predate this feature.
 
 ## Controls
 

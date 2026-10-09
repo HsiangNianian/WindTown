@@ -2,6 +2,7 @@ use crate::{
     Session,
     fishing::{Fishing, Stage},
     game::{Actor, Art, Outside, font},
+    i18n::{Localized, Message, tr},
     maps::Maps,
 };
 use bevy::prelude::*;
@@ -292,14 +293,16 @@ fn text(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
-    value: &str,
+    value: impl Into<Message>,
     x: f32,
     y: f32,
     size: f32,
     hex: u32,
 ) {
+    let value = value.into();
     commands.spawn((
-        Text2d::new(value),
+        Text2d::new(value.to_string()),
+        Localized(value),
         font(art, size),
         TextColor(color(hex)),
         Transform::from_xyz(x, y, 3.5),
@@ -309,18 +312,28 @@ fn text(
 
 pub fn setup(mut commands: Commands, art: Res<Art>, assets: Res<AssetServer>, maps: Res<Maps>) {
     let outside = commands
-        .spawn((Outside, Transform::default(), Visibility::Inherited))
+        .spawn((
+            Outside,
+            crate::maps::MapKind::Town,
+            Transform::default(),
+            Visibility::Inherited,
+        ))
         .id();
     maps.spawn(&mut commands, &assets, outside, &maps.town);
     let shop = commands
-        .spawn((Interior, Transform::default(), Visibility::Hidden))
+        .spawn((
+            Interior,
+            crate::maps::MapKind::Shop,
+            Transform::default(),
+            Visibility::Hidden,
+        ))
         .id();
     maps.spawn(&mut commands, &assets, shop, &maps.shop);
     text(
         &mut commands,
         shop,
         &art,
-        "TIDE & TACKLE",
+        tr("world.shop"),
         240.,
         180.,
         12.,
@@ -330,7 +343,7 @@ pub fn setup(mut commands: Commands, art: Res<Art>, assets: Res<AssetServer>, ma
         &mut commands,
         shop,
         &art,
-        "RODS, WORMS & GOOD ADVICE",
+        tr("world.shop_hint"),
         240.,
         160.,
         12.,
@@ -347,7 +360,36 @@ pub fn setup(mut commands: Commands, art: Res<Art>, assets: Res<AssetServer>, ma
         Transform::from_xyz(292., 20., -7.0),
         ChildOf(shop),
     ));
-    text(&mut commands, shop, &art, "MARA", 292., 49., 12., 0x365e59);
+    text(
+        &mut commands,
+        shop,
+        &art,
+        tr("world.mara"),
+        292.,
+        49.,
+        12.,
+        0x365e59,
+    );
+}
+
+pub(crate) fn reload_maps(
+    mut commands: Commands,
+    maps: Res<Maps>,
+    assets: Res<AssetServer>,
+    roots: Query<(Entity, &crate::maps::MapKind)>,
+    layers: Query<Entity, With<crate::maps::MapLayer>>,
+    mut revision: Local<u64>,
+) {
+    if *revision == maps.revision {
+        return;
+    }
+    *revision = maps.revision;
+    for layer in &layers {
+        commands.entity(layer).despawn();
+    }
+    for (root, kind) in &roots {
+        maps.spawn(&mut commands, &assets, root, maps.get(*kind));
+    }
 }
 
 pub fn animate(

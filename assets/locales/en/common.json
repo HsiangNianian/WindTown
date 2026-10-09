@@ -1,0 +1,9 @@
+{
+  "save": "SAVE",
+  "reload": "RELOAD",
+  "original": "ORIGINAL",
+  "done": "DONE",
+  "back": "<  BACK",
+  "connected": "CONNECTED",
+  "disconnected": "DISCONNECTED"
+}

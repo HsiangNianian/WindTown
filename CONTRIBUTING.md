@@ -3,7 +3,9 @@
 Yapshire is a Rust + Bevy game with a Cloudflare Worker in `server/`.
 Start with the [README](README.md) and [development guide](docs/DEVELOPMENT.md).
 
-- Keep the interface in English and use the bundled pixel font.
+- Put interface text in the modular `assets/locales/` catalogs and use the
+  bundled pixel font. English is the source and fallback; Simplified Chinese
+  translations live in `zh-CN/`. See [the translation guide](docs/TRANSLATING.md).
 - Keep changes focused. Update the game and Worker together when changing the
   online protocol, and add a behavior test for new networking logic.
 - Run the checks listed in the README. UI changes also need a real game run;

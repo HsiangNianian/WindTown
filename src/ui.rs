@@ -1,6 +1,7 @@
 use crate::{
     Session,
     game::{Actor, Art, font},
+    i18n::{I18n, Localized, Message, tr},
     network::{self, ClientMessage, Mode},
 };
 use bevy::{
@@ -16,6 +17,7 @@ pub enum Page {
     Lan,
     Cloud,
     Playing,
+    Editor,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Component)]
 pub enum Field {
@@ -40,14 +42,14 @@ pub struct Menu {
     cloud_host: bool,
     preedit: String,
     selected: bool,
-    pub status: String,
+    pub status: Message,
     pub connecting: bool,
     pub request: Option<Mode>,
     pub leave: bool,
     pub dirty: bool,
     pub(crate) rooms: Vec<network::RoomEntry>,
-    scan: Option<Mutex<mpsc::Receiver<Result<Vec<network::RoomEntry>, String>>>>,
-    lobby_error: String,
+    scan: Option<Mutex<mpsc::Receiver<Result<Vec<network::RoomEntry>, Message>>>>,
+    lobby_error: Message,
     room_page: usize,
 }
 
@@ -65,14 +67,14 @@ impl Default for Menu {
             cloud_host: false,
             preedit: String::new(),
             selected: false,
-            status: String::new(),
+            status: Message::default(),
             connecting: false,
             request: None,
             leave: false,
             dirty: true,
             rooms: Vec::new(),
             scan: None,
-            lobby_error: String::new(),
+            lobby_error: Message::default(),
             room_page: 0,
         }
     }
@@ -106,10 +108,10 @@ impl Menu {
             Page::Host => vec![Field::Port],
             Page::Lan => vec![Field::Address],
             Page::Cloud => vec![Field::Server, Field::Room],
-            Page::Playing => vec![],
+            Page::Playing | Page::Editor => vec![],
         }
     }
-    fn go(&mut self, page: Page) {
+    pub(crate) fn go(&mut self, page: Page) {
         self.page = page;
         self.active = None;
         self.preedit.clear();
@@ -135,7 +137,7 @@ impl Menu {
             } else {
                 network::discover_lan()
             };
-            let _ = send.send(result);
+            let _ = send.send(result.map_err(Message::from));
         });
         self.scan = Some(Mutex::new(receive));
         self.lobby_error.clear();
@@ -147,14 +149,14 @@ impl Menu {
         }
         self.name = network::clean(&self.name, 12);
         if self.name.is_empty() {
-            self.status = "Please enter your nickname on the main menu.".into();
+            self.status = tr("menu.name_required");
             return;
         }
         self.request = match self.page {
             Page::Host if self.cloud_host => {
                 self.room_name = network::clean(&self.room_name, 24);
                 if self.room_name.is_empty() {
-                    self.status = "Please enter a room name.".into();
+                    self.status = tr("menu.room_required");
                     None
                 } else {
                     Some(Mode::HostCloud {
@@ -166,7 +168,7 @@ impl Menu {
             Page::Host => match self.port.parse::<u16>() {
                 Ok(port) if port > 0 => Some(Mode::HostLan(port)),
                 _ => {
-                    self.status = "Port must be a number from 1 to 65535.".into();
+                    self.status = tr("menu.port_invalid");
                     None
                 }
             },
@@ -225,6 +227,7 @@ pub(crate) const CREAM: Color = Color::srgb_u8(247, 234, 206);
 pub(crate) const MUTED: Color = Color::srgb_u8(123, 133, 104);
 
 pub fn buttons(
+    settings: Res<crate::settings::Settings>,
     mut interactions: Query<
         (&Interaction, &Action, &mut BackgroundColor, &BaseColor),
         Changed<Interaction>,
@@ -234,6 +237,9 @@ pub fn buttons(
     mut fishing: ResMut<crate::fishing::Fishing>,
     mouse: Res<ButtonInput<MouseButton>>,
 ) {
+    if settings.blocks_input() {
+        return;
+    }
     for (interaction, action, mut color, base) in &mut interactions {
         *color = match interaction {
             Interaction::Hovered => BackgroundColor(Color::srgb_u8(156, 165, 121)),
@@ -268,8 +274,8 @@ pub fn buttons(
                 menu.status = match arboard::Clipboard::new()
                     .and_then(|mut c| c.set_text(session.invite.clone()))
                 {
-                    Ok(_) => "Invite copied to clipboard.".into(),
-                    Err(_) => format!("Invite: {}", session.invite),
+                    Ok(_) => tr("menu.invite_copied"),
+                    Err(_) => tr("menu.invite").arg("invite", &session.invite),
                 };
             }
             Action::Refresh => menu.refresh_rooms(),
@@ -341,6 +347,7 @@ fn edit(
 }
 
 pub fn keyboard(
+    settings: Res<crate::settings::Settings>,
     mut input: MessageReader<KeyboardInput>,
     mut ime: MessageReader<Ime>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -350,6 +357,12 @@ pub fn keyboard(
     mut window: Single<&mut Window>,
     mut fishing: ResMut<crate::fishing::Fishing>,
 ) {
+    if menu.page == Page::Editor || settings.blocks_input() {
+        input.clear();
+        ime.clear();
+        window.ime_enabled = false;
+        return;
+    }
     let mut composing = if chat.open {
         !chat.preedit.is_empty()
     } else {
@@ -441,7 +454,7 @@ pub fn keyboard(
                             chat.open = false;
                         }
                     } else {
-                        session.log("Disconnected. Your draft is still here.".into());
+                        session.log(tr("menu.draft_kept"));
                     }
                 } else if session.connected {
                     chat.open = true;
@@ -489,6 +502,7 @@ pub fn keyboard(
                 KeyCode::Digit1 => menu.go(Page::Host),
                 KeyCode::Digit2 => menu.go(Page::Lan),
                 KeyCode::Digit3 => menu.go(Page::Cloud),
+                KeyCode::Digit4 | KeyCode::F2 => menu.go(Page::Editor),
                 _ => {}
             }
         } else if menu.page == Page::Host
@@ -517,9 +531,7 @@ pub fn discover(time: Res<Time>, mut elapsed: Local<f32>, mut menu: ResMut<Menu>
         .and_then(|rx| match rx.lock().unwrap().try_recv() {
             Ok(result) => Some(result),
             Err(mpsc::TryRecvError::Empty) => None,
-            Err(mpsc::TryRecvError::Disconnected) => {
-                Some(Err("Lobby scan stopped. Please refresh.".into()))
-            }
+            Err(mpsc::TryRecvError::Disconnected) => Some(Err(tr("menu.lobby_stopped"))),
         });
     if let Some(result) = result {
         menu.scan = None;
@@ -557,13 +569,21 @@ pub(crate) fn label(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
-    text: &str,
+    text: impl Into<Message>,
     size: f32,
     color: Color,
 ) -> Entity {
+    let text = text.into();
     let entity = commands
-        .spawn((Text::new(text), font(art, size), TextColor(color)))
+        .spawn((
+            Text::new(text.to_string()),
+            font(art, size),
+            TextColor(color),
+        ))
         .id();
+    if matches!(text, Message::Key { .. }) {
+        commands.entity(entity).insert(Localized(text));
+    }
     commands.entity(parent).add_child(entity);
     entity
 }
@@ -572,11 +592,12 @@ pub(crate) fn button(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
-    title: &str,
-    subtitle: &str,
+    title: impl Into<Message>,
+    subtitle: impl Into<Message>,
     action: Action,
     primary: bool,
 ) -> Entity {
+    let subtitle = subtitle.into();
     let color = if primary {
         GREEN
     } else {
@@ -631,7 +652,13 @@ pub(crate) fn button(
     entity
 }
 
-fn field(commands: &mut Commands, parent: Entity, art: &Art, title: &str, which: Field) {
+fn field(
+    commands: &mut Commands,
+    parent: Entity,
+    art: &Art,
+    title: impl Into<Message>,
+    which: Field,
+) {
     label(commands, parent, art, title, 18.0, MUTED);
     let entity = commands
         .spawn((
@@ -665,18 +692,22 @@ fn field(commands: &mut Commands, parent: Entity, art: &Art, title: &str, which:
 }
 
 pub fn render(
+    i18n: Res<I18n>,
     mut commands: Commands,
     mut menu: ResMut<Menu>,
     art: Res<Art>,
     roots: Query<Entity, With<Root>>,
 ) {
-    if !menu.dirty {
+    if !menu.dirty && !i18n.is_changed() {
         return;
     }
     for entity in &roots {
         commands.entity(entity).despawn();
     }
     menu.dirty = false;
+    if menu.page == Page::Editor {
+        return;
+    }
     let root = commands
         .spawn((
             Root,
@@ -701,14 +732,7 @@ pub fn render(
             .id();
         commands.entity(root).add_child(header);
         label(&mut commands, header, &art, "Yapshire", 36.0, CREAM);
-        label(
-            &mut commands,
-            header,
-            &art,
-            "A LITTLE PLACE TO BE TOGETHER",
-            16.0,
-            CREAM,
-        );
+        label(&mut commands, header, &art, tr("menu.tagline"), 16.0, CREAM);
         let room = commands
             .spawn((
                 Node {
@@ -731,7 +755,7 @@ pub fn render(
             &mut commands,
             room,
             &art,
-            "COPY INVITE",
+            tr("menu.copy_invite"),
             "",
             Action::Copy,
             true,
@@ -803,23 +827,16 @@ pub fn render(
     commands.entity(root).add_child(panel);
     label(&mut commands, panel, &art, "Y A P S H I R E", 18.0, MUTED);
     label(&mut commands, panel, &art, "Yapshire", 48.0, INK);
-    label(
-        &mut commands,
-        panel,
-        &art,
-        "A quiet street. A few good friends.",
-        18.0,
-        MUTED,
-    );
+    label(&mut commands, panel, &art, tr("menu.intro"), 18.0, MUTED);
     match menu.page {
         Page::Home => {
-            field(&mut commands, panel, &art, "YOUR NICKNAME", Field::Name);
+            field(&mut commands, panel, &art, tr("menu.nickname"), Field::Name);
             button(
                 &mut commands,
                 panel,
                 &art,
-                "01  HOST A ROOM",
-                "Leave a light on for your friends.",
+                tr("menu.host"),
+                tr("menu.host_hint"),
                 Action::Go(Page::Host),
                 true,
             );
@@ -827,8 +844,8 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "02  JOIN LAN",
-                "A little closer. On the same network.",
+                tr("menu.lan"),
+                tr("menu.lan_hint"),
                 Action::Go(Page::Lan),
                 false,
             );
@@ -836,39 +853,41 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "03  JOIN SERVER",
-                "Far apart. Still walking together.",
+                tr("menu.cloud"),
+                tr("menu.cloud_hint"),
                 Action::Go(Page::Cloud),
+                false,
+            );
+            button(
+                &mut commands,
+                panel,
+                &art,
+                tr("menu.editor"),
+                "",
+                Action::Go(Page::Editor),
                 false,
             );
             label(
                 &mut commands,
                 panel,
                 &art,
-                "CLICK TO CHOOSE / KEYS 1, 2, 3",
+                tr("menu.choose_hint"),
                 14.0,
                 MUTED,
             );
         }
         Page::Host => {
-            label(
-                &mut commands,
-                panel,
-                &art,
-                "WHERE SHALL WE MEET?",
-                24.0,
-                INK,
-            );
+            label(&mut commands, panel, &art, tr("menu.host_title"), 24.0, INK);
             button(
                 &mut commands,
                 panel,
                 &art,
                 if menu.cloud_host {
-                    "[1] LOCAL NETWORK"
+                    tr("menu.host_lan")
                 } else {
-                    "[1] LOCAL NETWORK"
+                    tr("menu.host_lan")
                 },
-                "Share your IP address and port.",
+                tr("menu.host_lan_hint"),
                 Action::Hosting(false),
                 !menu.cloud_host,
             );
@@ -877,27 +896,33 @@ pub fn render(
                 panel,
                 &art,
                 if menu.cloud_host {
-                    "[2] ONLINE SERVER"
+                    tr("menu.host_cloud")
                 } else {
-                    "[2] ONLINE SERVER"
+                    tr("menu.host_cloud")
                 },
-                "Share a room code. Meet anywhere.",
+                tr("menu.host_cloud_hint"),
                 Action::Hosting(true),
                 menu.cloud_host,
             );
             if menu.cloud_host {
-                field(&mut commands, panel, &art, "ROOM NAME", Field::RoomName);
+                field(
+                    &mut commands,
+                    panel,
+                    &art,
+                    tr("menu.room_name"),
+                    Field::RoomName,
+                );
             } else {
-                field(&mut commands, panel, &art, "ROOM PORT", Field::Port);
+                field(&mut commands, panel, &art, tr("menu.port"), Field::Port);
             }
             button(
                 &mut commands,
                 panel,
                 &art,
                 if menu.connecting {
-                    "OPENING..."
+                    tr("menu.opening")
                 } else {
-                    "OPEN THE DOOR  >"
+                    tr("menu.open")
                 },
                 "",
                 Action::Connect,
@@ -907,28 +932,34 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "<  BACK",
+                tr("common.back"),
                 "",
                 Action::Back,
                 false,
             );
         }
         Page::Lan => {
-            label(&mut commands, panel, &art, "VISIT A FRIEND", 24.0, INK);
+            label(&mut commands, panel, &art, tr("menu.lan_title"), 24.0, INK);
             label(
                 &mut commands,
                 panel,
                 &art,
-                "Ask your friend for their invite.",
+                tr("menu.invite_hint"),
                 18.0,
                 MUTED,
             );
-            field(&mut commands, panel, &art, "HOST IP : PORT", Field::Address);
+            field(
+                &mut commands,
+                panel,
+                &art,
+                tr("menu.address"),
+                Field::Address,
+            );
             label(
                 &mut commands,
                 panel,
                 &art,
-                "Example: 192.168.1.10:4761\nSame computer: 127.0.0.1:4761",
+                tr("menu.address_hint"),
                 16.0,
                 MUTED,
             );
@@ -937,9 +968,9 @@ pub fn render(
                 panel,
                 &art,
                 if menu.connecting {
-                    "CONNECTING..."
+                    tr("menu.connecting")
                 } else {
-                    "COME ON IN  >"
+                    tr("menu.join")
                 },
                 "",
                 Action::Connect,
@@ -949,20 +980,27 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "<  BACK",
+                tr("common.back"),
                 "",
                 Action::Back,
                 false,
             );
         }
         Page::Cloud => {
-            label(&mut commands, panel, &art, "A PLACE TO MEET", 24.0, INK);
-            field(&mut commands, panel, &art, "SERVER ADDRESS", Field::Server);
+            label(
+                &mut commands,
+                panel,
+                &art,
+                tr("menu.cloud_title"),
+                24.0,
+                INK,
+            );
+            field(&mut commands, panel, &art, tr("menu.server"), Field::Server);
             field(
                 &mut commands,
                 panel,
                 &art,
-                "8-CHARACTER ROOM CODE",
+                tr("menu.room_code"),
                 Field::Room,
             );
             button(
@@ -970,9 +1008,9 @@ pub fn render(
                 panel,
                 &art,
                 if menu.connecting {
-                    "CONNECTING..."
+                    tr("menu.connecting")
                 } else {
-                    "COME ON IN  >"
+                    tr("menu.join")
                 },
                 "",
                 Action::Connect,
@@ -982,13 +1020,13 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "<  BACK",
+                tr("common.back"),
                 "",
                 Action::Back,
                 false,
             );
         }
-        Page::Playing => {}
+        Page::Playing | Page::Editor => {}
     }
     let status = label(
         &mut commands,
@@ -1014,7 +1052,7 @@ pub fn render(
         &mut commands,
         caption,
         &art,
-        "A little town.\nA little company.",
+        tr("menu.caption"),
         36.0,
         CREAM,
     );
@@ -1042,17 +1080,17 @@ pub fn render(
             lobby,
             &art,
             if menu.page == Page::Lan {
-                "NEARBY ROOMS"
+                tr("menu.lobby_lan")
             } else {
-                "ONLINE LOBBY"
+                tr("menu.lobby_cloud")
             },
             24.0,
             INK,
         );
         let detail = if menu.scan.is_some() {
-            "Looking for company...".into()
+            tr("menu.looking")
         } else {
-            format!("{} ROOM(S) / AUTO REFRESH 8s", menu.rooms.len())
+            tr("menu.room_count").arg("count", menu.rooms.len().to_string())
         };
         label(&mut commands, lobby, &art, &detail, 16.0, MUTED);
         if menu.rooms.is_empty() && menu.scan.is_none() {
@@ -1061,9 +1099,9 @@ pub fn render(
                 lobby,
                 &art,
                 if menu.lobby_error.is_empty() {
-                    "No rooms yet. Be the first to host!\nYou can also enter an invite on the left."
+                    tr("menu.no_rooms")
                 } else {
-                    &menu.lobby_error
+                    menu.lobby_error.clone()
                 },
                 18.0,
                 INK,
@@ -1076,27 +1114,26 @@ pub fn render(
             .skip(menu.room_page * 3)
             .take(3)
         {
-            let subtitle = format!(
-                "{}/16 HERE  /  {}",
-                room.players,
-                if menu.page == Page::Lan {
-                    &room.address
-                } else {
-                    &room.code
-                }
-            );
+            let subtitle = tr("menu.room_players")
+                .arg("count", room.players.to_string())
+                .arg(
+                    "invite",
+                    if menu.page == Page::Lan {
+                        &room.address
+                    } else {
+                        &room.code
+                    },
+                );
+            let title = if menu.page == Page::Lan {
+                tr("menu.friend_town").arg("name", &room.name)
+            } else {
+                room.name.clone().into()
+            };
             button(
                 &mut commands,
                 lobby,
                 &art,
-                &format!(
-                    "{}  >",
-                    if menu.page == Page::Lan {
-                        format!("{}'s town", room.name)
-                    } else {
-                        room.name.clone()
-                    }
-                ),
+                title,
                 &subtitle,
                 Action::JoinRoom(index),
                 false,
@@ -1107,11 +1144,9 @@ pub fn render(
                 &mut commands,
                 lobby,
                 &art,
-                &format!(
-                    "NEXT PAGE  {}/{}  >",
-                    menu.room_page + 1,
-                    menu.rooms.len().div_ceil(3)
-                ),
+                tr("menu.next_page")
+                    .arg("page", (menu.room_page + 1).to_string())
+                    .arg("pages", menu.rooms.len().div_ceil(3).to_string()),
                 "",
                 Action::NextRooms,
                 false,
@@ -1121,20 +1156,13 @@ pub fn render(
             &mut commands,
             lobby,
             &art,
-            "REFRESH ROOMS",
+            tr("menu.refresh"),
             "",
             Action::Refresh,
             true,
         );
     }
-    label(
-        &mut commands,
-        caption,
-        &art,
-        "SLOW DOWN. SAY HELLO.",
-        16.0,
-        CREAM,
-    );
+    label(&mut commands, caption, &art, tr("menu.slow"), 16.0, CREAM);
     let footer = commands
         .spawn(Node {
             position_type: PositionType::Absolute,
@@ -1144,17 +1172,11 @@ pub fn render(
         })
         .id();
     commands.entity(root).add_child(footer);
-    label(
-        &mut commands,
-        footer,
-        &art,
-        "TAB NEXT FIELD  /  CTRL+V PASTE  /  F11 WINDOW / FULLSCREEN",
-        16.0,
-        CREAM,
-    );
+    label(&mut commands, footer, &art, tr("menu.footer"), 16.0, CREAM);
 }
 
 pub fn refresh(
+    i18n: Res<I18n>,
     menu: Res<Menu>,
     chat: Res<Chat>,
     session: Res<Session>,
@@ -1185,44 +1207,54 @@ pub fn refresh(
         " "
     };
     for (mut text, field, status, input, log, room) in &mut text {
-        let value = if let Some(FieldValue(field)) = field {
+        let value: Message = if let Some(FieldValue(field)) = field {
             let value = menu.field(*field);
             if menu.active == Some(*field) {
-                format!("{}{}{}", value, menu.preedit, cursor)
+                format!("{}{}{}", value, menu.preedit, cursor).into()
             } else if value.is_empty() {
-                "Click to type...".into()
+                tr("menu.type")
             } else {
                 value.into()
             }
         } else if status.is_some() {
             if menu.page == Page::Playing && menu.status.is_empty() && chat.open {
-                "ENTER CHAT / SEND   /   ESC CLOSE CHAT / LEAVE   /   80 CHARACTERS".into()
+                tr("menu.chat_help")
             } else {
                 menu.status.clone()
             }
         } else if input.is_some() {
             if chat.open {
-                format!("SAY HELLO  >  {}{}{}", chat.value, chat.preedit, cursor)
+                tr("menu.chat_input")
+                    .arg("text", &chat.value)
+                    .arg("preedit", &chat.preedit)
+                    .arg("cursor", cursor)
             } else {
-                "A D WALK  /  SHIFT RUN  /  SPACE JUMP  /  E INTERACT  /  I SATCHEL  /  ENTER CHAT"
-                    .into()
+                tr("menu.controls")
             }
         } else if log.is_some() {
-            session.log.iter().cloned().collect::<Vec<_>>().join("\n")
+            session
+                .log
+                .iter()
+                .map(|message| message.render(&i18n))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .into()
         } else if room.is_some() {
-            format!(
-                "{}\n{} / {} IN TOWN",
-                session.label,
-                if session.connected {
-                    "CONNECTED"
-                } else {
-                    "DISCONNECTED"
-                },
-                actors.iter().count()
-            )
+            tr("menu.room_status")
+                .arg("room", &session.label)
+                .arg(
+                    "state",
+                    if session.connected {
+                        tr("common.connected")
+                    } else {
+                        tr("common.disconnected")
+                    },
+                )
+                .arg("count", actors.iter().count().to_string())
         } else {
             continue;
         };
+        let value = value.render(&i18n);
         if **text != value {
             **text = value;
         }
@@ -1247,6 +1279,7 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<Menu>()
             .init_resource::<Session>()
+            .init_resource::<crate::settings::Settings>()
             .init_resource::<crate::fishing::Fishing>()
             .init_resource::<ButtonInput<MouseButton>>()
             .add_systems(Update, buttons);
@@ -1294,7 +1327,7 @@ mod tests {
         assert!(menu.fields() == vec![Field::RoomName]);
         menu.connect();
         assert!(menu.request.is_none());
-        assert_eq!(menu.status, "Please enter a room name.");
+        assert_eq!(menu.status, tr("menu.room_required"));
         menu.room_name = " Sunset & Friends\n ".into();
         menu.connect();
         assert!(

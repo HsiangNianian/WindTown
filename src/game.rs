@@ -31,6 +31,7 @@ pub struct Art {
     pub panel: Handle<Image>,
     pub slot: Handle<Image>,
     pub water: Handle<Image>,
+    pub editor_icons: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -119,6 +120,7 @@ pub fn setup(
         panel: assets.load("fishing/frame.png"),
         slot: assets.load("fishing/slot.png"),
         water: assets.load("fishing/water.png"),
+        editor_icons: assets.load("ui/editor-icons.png"),
     };
     let size = Extent3d {
         width: WIDTH as u32,
@@ -273,6 +275,7 @@ fn step(position: &mut Vec2, velocity_y: &mut f32, direction: f32, run: bool, ju
 }
 
 pub fn walk(
+    settings: Res<crate::settings::Settings>,
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     menu: Res<Menu>,
@@ -300,6 +303,7 @@ pub fn walk(
             continue;
         }
         let enabled = menu.page == Page::Playing
+            && !settings.blocks_input()
             && !chat.open
             && !fishing.modal()
             && session.connected

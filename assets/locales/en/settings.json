@@ -1,0 +1,11 @@
+{
+  "button": "SETTINGS",
+  "title": "Settings",
+  "language": "LANGUAGE",
+  "hint": "Choose the language that feels like home.",
+  "instant": "Changes apply immediately.",
+  "saved": "Language saved on this computer.",
+  "save_failed": "Language changed for now. Could not save: {error}",
+  "load_failed": "Could not read settings; using English.",
+  "close": "DONE"
+}

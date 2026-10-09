@@ -1,29 +1,34 @@
+use crate::i18n::{Message, tr};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{io, path::Path};
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub(crate) struct Map {
-    width: u32,
-    height: u32,
+    pub width: u32,
+    pub height: u32,
     tilewidth: u32,
     tileheight: u32,
     orientation: String,
     infinite: bool,
     tilesets: Vec<TilesetRef>,
-    layers: Vec<Layer>,
+    pub layers: Vec<Layer>,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 struct TilesetRef {
     firstgid: u32,
     source: String,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
-#[derive(Deserialize)]
-struct Layer {
-    name: String,
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub(crate) struct Layer {
+    pub name: String,
     #[serde(rename = "type")]
     kind: String,
     width: u32,
@@ -34,10 +39,45 @@ struct Layer {
     offsetx: f32,
     #[serde(default)]
     offsety: f32,
-    visible: bool,
+    pub visible: bool,
     opacity: f32,
-    data: Vec<u32>,
+    pub data: Vec<u32>,
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Component)]
+pub(crate) enum MapKind {
+    Town,
+    Shop,
+}
+
+impl MapKind {
+    pub const ALL: [Self; 2] = [Self::Town, Self::Shop];
+
+    pub fn index(self) -> usize {
+        if self == Self::Town { 0 } else { 1 }
+    }
+
+    pub fn filename(self) -> &'static str {
+        if self == Self::Town {
+            "town.tmj"
+        } else {
+            "tackle-shop.tmj"
+        }
+    }
+
+    pub fn title(self) -> Message {
+        if self == Self::Town {
+            tr("editor.town_title")
+        } else {
+            tr("editor.shop_title")
+        }
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct MapLayer;
 
 #[derive(Deserialize)]
 struct Tileset {
@@ -69,6 +109,8 @@ struct Frame {
 pub(crate) struct Maps {
     pub town: Map,
     pub shop: Map,
+    pub asset_path: std::path::PathBuf,
+    pub revision: u64,
     tileset: Tileset,
 }
 
@@ -120,6 +162,35 @@ impl Map {
 }
 
 impl Maps {
+    pub fn get(&self, kind: MapKind) -> &Map {
+        match kind {
+            MapKind::Town => &self.town,
+            MapKind::Shop => &self.shop,
+        }
+    }
+
+    pub fn replace(&mut self, kind: MapKind, map: Map) {
+        if self.get(kind) == &map {
+            return;
+        }
+        self.revision += 1;
+        match kind {
+            MapKind::Town => self.town = map,
+            MapKind::Shop => self.shop = map,
+        }
+    }
+
+    pub fn tile_count(&self) -> u32 {
+        self.tileset.tilecount
+    }
+
+    pub fn validate_map(&self, kind: MapKind, map: &Map) -> io::Result<()> {
+        map.validate(
+            if kind == MapKind::Town { 90 } else { 30 },
+            self.tile_count(),
+        )
+    }
+
     pub fn load(assets: &Path) -> io::Result<Self> {
         fn read<T: serde::de::DeserializeOwned>(path: &Path) -> io::Result<T> {
             serde_json::from_slice(&std::fs::read(path)?)
@@ -127,6 +198,8 @@ impl Maps {
         }
         let folder = assets.join("maps");
         let maps = Self {
+            asset_path: assets.to_path_buf(),
+            revision: 0,
             town: read(&folder.join("town.tmj"))?,
             shop: read(&folder.join("tackle-shop.tmj"))?,
             tileset: read(&folder.join("harbor.tsj"))?,
@@ -176,7 +249,7 @@ impl Maps {
         let tile_size = TilemapTileSize { x: 16.0, y: 16.0 };
         for (depth, layer) in map.layers.iter().enumerate() {
             let entity = commands
-                .spawn((Name::new(layer.name.clone()), ChildOf(parent)))
+                .spawn((MapLayer, Name::new(layer.name.clone()), ChildOf(parent)))
                 .id();
             let mut storage = TileStorage::empty(size);
             for (i, &gid) in layer.data.iter().enumerate().filter(|(_, gid)| **gid != 0) {
@@ -196,6 +269,7 @@ impl Maps {
                     },
                     ..default()
                 });
+                tile.insert(ChildOf(entity));
                 if let Some(animation) = self.tileset.tiles.iter().find(|tile| tile.id == index) {
                     let first = &animation.animation[0];
                     tile.insert(AnimatedTile {
@@ -284,5 +358,22 @@ mod tests {
         map.layers[0].data.push(0);
         map.layers[0].offsetx = 1.0;
         assert!(map.validate(90, maps.tileset.tilecount).is_err());
+    }
+}
+
+// Keep Tiled's stored names intact; only known bundled layer names are localized.
+pub(crate) fn layer_title(name: &str) -> Message {
+    match name {
+        "Water" => tr("editor.layer.water"),
+        "Shore and pilings" => tr("editor.layer.shore"),
+        "Terrain" => tr("editor.layer.terrain"),
+        "Buildings" => tr("editor.layer.buildings"),
+        "Props" => tr("editor.layer.props"),
+        "Backdrop" => tr("editor.layer.backdrop"),
+        "Walls" => tr("editor.layer.walls"),
+        "Floor" => tr("editor.layer.floor"),
+        "Furniture" => tr("editor.layer.furniture"),
+        "Counter" => tr("editor.layer.counter"),
+        _ => name.into(),
     }
 }

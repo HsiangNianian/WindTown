@@ -2,6 +2,7 @@ use crate::{
     Session,
     fishing::{self, Action, FISH, Fishing, Panel, Stage},
     game::{Actor, Art},
+    i18n::{I18n, Message, tr},
     ui::{self, Menu, Page},
 };
 use bevy::{
@@ -99,8 +100,8 @@ fn slot(
     parent: Entity,
     art: &Art,
     index: usize,
-    name: &str,
-    amount: &str,
+    name: impl Into<Message>,
+    amount: impl Into<Message>,
     owned: bool,
 ) {
     let cell = frame(
@@ -146,8 +147,8 @@ fn shop_item(
     parent: Entity,
     art: &Art,
     index: usize,
-    title: &str,
-    detail: &str,
+    title: impl Into<Message>,
+    detail: impl Into<Message>,
     action: Action,
 ) {
     let button = ui::button(
@@ -186,7 +187,13 @@ fn shop_item(
     });
 }
 
-fn meter(commands: &mut Commands, parent: Entity, art: &Art, title: &str, fill: Fill) {
+fn meter(
+    commands: &mut Commands,
+    parent: Entity,
+    art: &Art,
+    title: impl Into<Message>,
+    fill: Fill,
+) {
     ui::label(commands, parent, art, title, 15.0, ui::INK);
     let track = commands
         .spawn((
@@ -214,13 +221,14 @@ fn meter(commands: &mut Commands, parent: Entity, art: &Art, title: &str, fill: 
 }
 
 pub fn render(
+    i18n: Res<I18n>,
     mut commands: Commands,
     menu: Res<Menu>,
     art: Res<Art>,
     mut fishing: ResMut<Fishing>,
     roots: Query<Entity, With<Root>>,
 ) {
-    if !fishing.dirty && !menu.is_changed() {
+    if !fishing.dirty && !menu.is_changed() && !i18n.is_changed() {
         return;
     }
     for root in &roots {
@@ -320,12 +328,12 @@ pub fn render(
     );
     match fishing.panel {
         Panel::Bag => {
-            ui::label(&mut commands, panel, &art, "YOUR SATCHEL", 30.0, ui::INK);
+            ui::label(&mut commands, panel, &art, tr("fishing.bag"), 30.0, ui::INK);
             ui::label(
                 &mut commands,
                 panel,
                 &art,
-                "TACKLE & SUPPLIES",
+                tr("fishing.supplies"),
                 15.0,
                 ui::MUTED,
             );
@@ -333,40 +341,47 @@ pub fn render(
             for (index, name, count, owned) in [
                 (
                     0,
-                    "Bamboo rod",
+                    tr("fishing.rod"),
                     if fishing.progress.rod {
-                        "EQUIPPED".into()
+                        tr("fishing.equipped")
                     } else {
-                        "NOT OWNED".into()
+                        tr("fishing.not_owned")
                     },
                     fishing.progress.rod,
                 ),
                 (
                     1,
-                    "Hook",
+                    tr("fishing.hook"),
                     if fishing.progress.hook {
-                        "EQUIPPED".into()
+                        tr("fishing.equipped")
                     } else {
-                        "NOT OWNED".into()
+                        tr("fishing.not_owned")
                     },
                     fishing.progress.hook,
                 ),
                 (
                     2,
-                    "Worm tin",
-                    format!("x{}", fishing.progress.bait),
+                    tr("fishing.bait"),
+                    Message::from(format!("x{}", fishing.progress.bait)),
                     fishing.progress.bait > 0,
                 ),
                 (
                     3,
-                    "Coins",
-                    format!("x{}", fishing.progress.coins),
+                    tr("fishing.coins"),
+                    Message::from(format!("x{}", fishing.progress.coins)),
                     fishing.progress.coins > 0,
                 ),
             ] {
                 slot(&mut commands, equipment, &art, index, name, &count, owned);
             }
-            ui::label(&mut commands, panel, &art, "TODAY'S CATCH", 15.0, ui::MUTED);
+            ui::label(
+                &mut commands,
+                panel,
+                &art,
+                tr("fishing.catch"),
+                15.0,
+                ui::MUTED,
+            );
             let catches = row(&mut commands, panel, 8.0);
             for (index, (name, price)) in FISH.iter().enumerate() {
                 let count = fishing.progress.catches[index];
@@ -375,7 +390,7 @@ pub fn render(
                     catches,
                     &art,
                     4 + index,
-                    name,
+                    tr(name),
                     &format!("x{count} / {price}c"),
                     count > 0,
                 );
@@ -384,10 +399,7 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                &format!(
-                    "Catch value: {} coins at Mara's counter",
-                    fishing.progress.value()
-                ),
+                tr("fishing.catch_value").arg("coins", fishing.progress.value().to_string()),
                 18.0,
                 ui::INK,
             );
@@ -397,7 +409,7 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "MARA'S TACKLE COUNTER",
+                tr("fishing.counter"),
                 27.0,
                 ui::INK,
             );
@@ -405,7 +417,7 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                "Pick something for an afternoon by the sea.",
+                tr("fishing.counter_hint"),
                 18.0,
                 ui::MUTED,
             );
@@ -414,11 +426,11 @@ pub fn render(
                 panel,
                 &art,
                 0,
-                "1  BAMBOO ROD",
+                tr("fishing.buy_rod"),
                 if fishing.progress.rod {
-                    "EQUIPPED / Yours to keep"
+                    tr("fishing.owned_hint")
                 } else {
-                    "45 coins / Buy once, keep forever"
+                    tr("fishing.rod_price")
                 },
                 Action::Rod,
             );
@@ -427,11 +439,11 @@ pub fn render(
                 panel,
                 &art,
                 1,
-                "2  BARBLESS HOOK",
+                tr("fishing.buy_hook"),
                 if fishing.progress.hook {
-                    "EQUIPPED / Fitted to your rod"
+                    tr("fishing.hook_owned")
                 } else {
-                    "15 coins / Reusable tackle"
+                    tr("fishing.hook_price")
                 },
                 Action::Hook,
             );
@@ -440,8 +452,8 @@ pub fn render(
                 panel,
                 &art,
                 2,
-                "3  WORM TIN",
-                "10 coins / Five worms, five casts",
+                tr("fishing.buy_bait"),
+                tr("fishing.bait_price"),
                 Action::Bait,
             );
             shop_item(
@@ -449,12 +461,13 @@ pub fn render(
                 panel,
                 &art,
                 11,
-                "4  SELL YOUR CATCH",
-                &format!(
-                    "{} fish / {} coins",
-                    fishing.progress.catches.iter().sum::<u32>(),
-                    fishing.progress.value()
-                ),
+                tr("fishing.sell"),
+                tr("fishing.sell_value")
+                    .arg(
+                        "fish",
+                        fishing.progress.catches.iter().sum::<u32>().to_string(),
+                    )
+                    .arg("coins", fishing.progress.value().to_string()),
                 Action::Sell,
             );
         }
@@ -538,12 +551,18 @@ pub fn render(
             commands.entity(detail).insert(Readout::Detail);
             match fishing.stage {
                 Stage::Reeling(_) => {
-                    meter(&mut commands, panel, &art, "REELED IN", Fill::Landing);
                     meter(
                         &mut commands,
                         panel,
                         &art,
-                        "LINE STRAIN / RED: RELEASE SPACE",
+                        tr("fishing.landing"),
+                        Fill::Landing,
+                    );
+                    meter(
+                        &mut commands,
+                        panel,
+                        &art,
+                        tr("fishing.tension"),
                         Fill::Tension,
                     );
                 }
@@ -551,7 +570,7 @@ pub fn render(
                     &mut commands,
                     panel,
                     &art,
-                    "SPACE! SET THE HOOK",
+                    tr("fishing.set_hook"),
                     Fill::Bite,
                 ),
                 _ => {}
@@ -563,9 +582,9 @@ pub fn render(
         panel,
         &art,
         if fishing.active() {
-            "ESC  PUT THE ROD AWAY"
+            tr("fishing.put_away")
         } else {
-            "ESC  BACK TO THE TOWN"
+            tr("fishing.back")
         },
         "",
         ui::Action::Fishing(Action::Close),
@@ -582,6 +601,7 @@ pub fn render(
 }
 
 pub fn refresh(
+    i18n: Res<I18n>,
     time: Res<Time>,
     fishing: Res<Fishing>,
     session: Res<Session>,
@@ -596,17 +616,17 @@ pub fn refresh(
         .find(|a| Some(a.player.id) == session.you)
         .map_or(0.0, |a| a.position.x);
     let prompt = if fishing.modal() {
-        ""
+        Message::default()
     } else if fishing.indoors && (x - fishing::SHOP_EXIT).abs() < 32.0 {
-        "E  LEAVE SHOP"
+        tr("fishing.prompt.leave")
     } else if fishing.indoors && (x - fishing::COUNTER).abs() < 58.0 {
-        "E  SHOP / SELL CATCH"
+        tr("fishing.prompt.shop")
     } else if !fishing.indoors && (x - fishing::SHOP_DOOR).abs() < 28.0 {
-        "E  ENTER TIDE & TACKLE"
+        tr("fishing.prompt.enter")
     } else if !fishing.indoors && x >= fishing::PIER_START {
-        "E  CAST INTO OPEN WATER"
+        tr("fishing.prompt.cast")
     } else {
-        ""
+        Message::default()
     };
     for mut node in &mut prompts {
         node.display = if prompt.is_empty() {
@@ -616,44 +636,45 @@ pub fn refresh(
         };
     }
     for (part, mut text) in &mut texts {
-        let value = match part {
-            Readout::Coins => fishing.progress.coins.to_string(),
-            Readout::Bait => fishing.progress.bait.to_string(),
-            Readout::Prompt => prompt.into(),
+        let value: Message = match part {
+            Readout::Coins => fishing.progress.coins.to_string().into(),
+            Readout::Bait => fishing.progress.bait.to_string().into(),
+            Readout::Prompt => prompt.clone(),
             Readout::Notice => {
                 if !fishing.save_error.is_empty() {
                     fishing.save_error.clone()
                 } else if fishing.notice_time > 0.0 {
                     fishing.notice.clone()
                 } else {
-                    String::new()
+                    Message::default()
                 }
             }
             Readout::Title => match &fishing.stage {
-                Stage::Waiting(_) => "WATCH THE FLOAT".into(),
-                Stage::Bite(_) => "BITE! PRESS SPACE!".into(),
+                Stage::Waiting(_) => tr("fishing.watch"),
+                Stage::Bite(_) => tr("fishing.bite"),
                 Stage::Reeling(fight) => if fight.pull > 0.8 {
-                    "FISH DASHING / EASE OFF"
+                    tr("fishing.dash")
                 } else {
-                    "BRING IT HOME"
+                    tr("fishing.reel")
                 }
                 .into(),
                 Stage::Result { fish, .. } => if fish.is_some() {
-                    "A FINE CATCH!"
+                    tr("fishing.won")
                 } else {
-                    "IT SLIPPED AWAY"
+                    tr("fishing.lost")
                 }
                 .into(),
-                Stage::Idle => String::new(),
+                Stage::Idle => Message::default(),
             },
             Readout::Detail => match &fishing.stage {
-                Stage::Waiting(_) => "A quiet moment. Wait for the splash.".into(),
-                Stage::Bite(_) => "Tap SPACE before it steals the worm!".into(),
-                Stage::Reeling(_) => "Hold SPACE to reel. Release to ease the line.".into(),
+                Stage::Waiting(_) => tr("fishing.waiting_hint"),
+                Stage::Bite(_) => tr("fishing.bite_hint"),
+                Stage::Reeling(_) => tr("fishing.reel_hint"),
                 Stage::Result { message, .. } => message.clone(),
-                Stage::Idle => String::new(),
+                Stage::Idle => Message::default(),
             },
         };
+        let value = value.render(&i18n);
         if **text != value {
             **text = value;
         }
