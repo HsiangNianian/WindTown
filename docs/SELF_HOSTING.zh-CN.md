@@ -41,7 +41,7 @@ docker run -d --name yapshire --restart unless-stopped \
   -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:latest
 ```
 
-可以用 `:v0.5.0` 等版本标签固定版本。仓库提供了 [`compose.yaml`](../compose.yaml)，
+可以用 `:v0.5.1` 等版本标签固定版本。仓库提供了 [`compose.yaml`](../compose.yaml)，
 运行 `docker compose up -d` 即可启动默认小镇。
 镜像以 UID/GID **10001** 运行，内置 HTTP 健康检查，从 `/data` 读取配置，不会写入地图。
 
@@ -60,7 +60,7 @@ docker run -d --name yapshire-custom --restart unless-stopped \
   -p 4761:4761 --read-only --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$PWD/my-town,dst=/data,readonly" \
-  ghcr.io/hsiangnianian/yapshire-server:v0.5.0
+  ghcr.io/hsiangnianian/yapshire-server:v0.5.1
 ```
 
 目录和文件需要允许 UID 10001 读取。使用 Compose 时，取消 `./my-town:/data:ro` 挂载行的注释。

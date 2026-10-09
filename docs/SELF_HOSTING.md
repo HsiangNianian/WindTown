@@ -47,7 +47,7 @@ docker run -d --name yapshire --restart unless-stopped \
   -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:latest
 ```
 
-Use a version tag such as `:v0.5.0` to pin a release. The repository also includes
+Use a version tag such as `:v0.5.1` to pin a release. The repository also includes
 [`compose.yaml`](../compose.yaml): `docker compose up -d` starts the default town.
 The image runs as UID/GID **10001**, includes an HTTP health check, and reads
 configuration from `/data`. It never needs to write to your maps.
@@ -67,7 +67,7 @@ docker run -d --name yapshire-custom --restart unless-stopped \
   -p 4761:4761 --read-only --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$PWD/my-town,dst=/data,readonly" \
-  ghcr.io/hsiangnianian/yapshire-server:v0.5.0
+  ghcr.io/hsiangnianian/yapshire-server:v0.5.1
 ```
 
 Ensure the directory and files are readable by UID 10001. In Compose, enable the

@@ -450,18 +450,18 @@ root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.5.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.5.1 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock crates/*/Cargo.toml server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: release v0.5.0"
+git commit -m "chore: release v0.5.1"
 # Once the release commit is on main:
-git tag -a v0.5.0 -m "Release v0.5.0"
-git push --atomic origin main v0.5.0
+git tag -a v0.5.1 -m "Release v0.5.1"
+git push --atomic origin main v0.5.1
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.5.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.5.1"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 

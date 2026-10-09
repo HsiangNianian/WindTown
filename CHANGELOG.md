@@ -5,6 +5,33 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [v0.5.1] - 2026-10-10
+
+### Self-hosted Towns
+
+- Download standalone `yapshire-server` programs for Windows, Linux, macOS Intel
+  and Apple Silicon. Run without a game window or GPU; editable maps and a
+  ready-to-use configuration are included.
+- Host with the public AMD64/ARM64 Docker image
+  `ghcr.io/hsiangnianian/yapshire-server:v0.5.1` or the included Compose file.
+- Connect through the game's saved custom-server address and optional password.
+  Server, client and editor share one Tiled `.tmj` format. Joining downloads and
+  verifies the server's map; leaving restores the player's local map.
+- Configure a persistent town, room and player limits, optional player-created
+  rooms and password protection. Custom layouts use the bundled tileset and fixed
+  map sizes; collision, interaction points and NPC positions remain fixed.
+
+### Release Fix
+
+- Verify each published Docker architecture using its platform manifest digest.
+  This avoids a Docker image-store conflict when checking AMD64 and ARM64 in the
+  same CI job. This release completes the game/server archive publication that
+  was blocked by that verification error in v0.5.0.
+
+Use v0.5.0 or later clients for dedicated servers and LAN map synchronization.
+See the [self-hosting guide](https://github.com/HsiangNianian/Yapshire/blob/v0.5.1/docs/SELF_HOSTING.md)
+or [中文开服指南](https://github.com/HsiangNianian/Yapshire/blob/v0.5.1/docs/SELF_HOSTING.zh-CN.md).
+
 ## [v0.5.0] - 2026-10-10
 
 ### New Features
