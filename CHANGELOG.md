@@ -5,6 +5,45 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [v0.5.0] - 2026-10-10
+
+### New Features
+
+- Run an independent `yapshire-server` on Windows, Linux, macOS Intel or Apple
+  Silicon, without a game window or GPU. Release downloads include editable maps
+  and configuration. `--init` creates a town without overwriting existing files;
+  `--check` validates it before opening a port.
+- Host with Docker or Compose using the AMD64/ARM64 image
+  `ghcr.io/hsiangnianian/yapshire-server:v0.5.0`. The image runs as a non-root user,
+  supports read-only map mounts and includes a health check.
+- Use the same saved server address for creating and joining rooms, with a
+  button to restore the official service and an optional masked server password.
+  Passwords remain in memory and are excluded from settings and invite codes.
+- Share maps automatically from LAN hosts and dedicated servers. The client,
+  editor and server use one Tiled `.tmj` format and validation module. Clients
+  verify the server's map revision before joining, retain their local maps,
+  and restore them on leaving or disconnecting.
+- Keep a configured town available even when empty, with optional player-created
+  rooms, room/player limits, password protection, origin checks, bounded message
+  sizes and queues, rate limits, and graceful shutdown.
+
+### Compatibility and Verification
+
+- Dedicated servers and LAN map synchronization require v0.5.0 or later clients
+  (protocol 2). The updated client remains compatible with the existing public
+  Cloudflare Worker, using its original map.
+- Custom layouts use the bundled harbor palette. Map sizes, collision, interaction
+  points and NPC positions remain fixed; custom textures are not transferred.
+  Reload map files by restarting the server and reconnecting players.
+- Verified edited-map transfer, two-client chat and movement, passwords, room
+  isolation and capacity, malformed/flooding peers, CLI setup, and clean shutdown.
+  Native English and Chinese two-window checks also cover map restoration and
+  address persistence. CI checks all four native platforms and both Docker
+  architectures before publishing the release.
+
+See the [self-hosting guide](https://github.com/HsiangNianian/Yapshire/blob/v0.5.0/docs/SELF_HOSTING.md)
+or [中文开服指南](https://github.com/HsiangNianian/Yapshire/blob/v0.5.0/docs/SELF_HOSTING.zh-CN.md).
+
 ## [v0.4.0] - 2026-10-10
 
 ### New Features
