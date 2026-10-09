@@ -5,6 +5,13 @@ workflow. Each entry also supplies the corresponding GitHub Release Notes.
 The workflow commits this file after all platform archives have been uploaded
 and verified.
 
+## [v0.2.0] - 2026-10-09
+### New Features
+- [`c1f9e13`](https://github.com/HsiangNianian/Yapshire/commit/c1f9e1388f9604d80cc15808974bb38295464847) - rename game to Yapshire and add bilingual gameplay previews *(commit by [@HsiangNianian](https://github.com/HsiangNianian))*
+
+### Documentation Changes
+- [`036b49d`](https://github.com/HsiangNianian/Yapshire/commit/036b49d72835c30973e022ee70d40dcf20501309) - update CHANGELOG.md for v0.1.0 [skip ci] *(commit by [@github-actions[bot]](https://github.com/apps/github-actions))*
+
 ## [v0.1.0] - 2026-10-08
 ### New Features
 - [`3390f15`](https://github.com/HsiangNianian/Yapshire/commit/3390f15c60056c5aa51bc0b7d2f50761586d5573) - add Yapshire multiplayer game and cross-platform releases *(commit by [@HsiangNianian](https://github.com/HsiangNianian))*
@@ -18,3 +25,5 @@ and verified.
 - [`4efb55f`](https://github.com/HsiangNianian/Yapshire/commit/4efb55f097a1a937cdfa02af952cbacc82b4bb26) - redesign README around game previews and release downloads *(commit by [@HsiangNianian](https://github.com/HsiangNianian))*
 
 [v0.1.0]: https://github.com/HsiangNianian/Yapshire/compare/a21eb24767b62f3b8c9b82bf199d41d1cde36044...v0.1.0
+
+[v0.2.0]: https://github.com/HsiangNianian/Yapshire/compare/v0.1.0...v0.2.0
