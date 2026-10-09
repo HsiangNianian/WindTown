@@ -53,7 +53,7 @@ jobs:
         run: python tools/package.py --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v7
         with:
-          name: wind-town-${{ matrix.platform }}-${{ github.sha }}
+          name: yapshire-${{ matrix.platform }}-${{ github.sha }}
           path: |
             dist/*.zip
             dist/*.tar.gz

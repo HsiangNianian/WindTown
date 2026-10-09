@@ -1,11 +1,13 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/readme/banner-dark.svg">
-    <img src="docs/readme/banner.svg" alt="Wind Town — a quiet street, a few good friends." width="960">
+    <img src="docs/readme/banner.svg" alt="Yapshire — a quiet street, a few good friends." width="960">
   </picture>
 </p>
 
-<h1 align="center">Wind Town</h1>
+<h1 align="center">Yapshire</h1>
+
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
   <strong>A little town. A little company.</strong><br>
@@ -13,9 +15,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/HsiangNianian/WindTown/releases/latest"><img src="https://img.shields.io/github/v/release/HsiangNianian/WindTown?style=flat-square&amp;color=3f6654&amp;label=download" alt="Download the latest release"></a>
-  <a href="https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml"><img src="https://github.com/HsiangNianian/WindTown/actions/workflows/ci.yml/badge.svg" alt="Cross-platform CI"></a>
-  <a href="https://github.com/HsiangNianian/WindTown/releases"><img src="https://img.shields.io/badge/play-Windows%20%2F%20Linux%20%2F%20macOS-7c8060?style=flat-square" alt="Windows, Linux, and macOS"></a>
+  <a href="https://github.com/HsiangNianian/Yapshire/releases/latest"><img src="https://img.shields.io/github/v/release/HsiangNianian/Yapshire?style=flat-square&amp;color=3f6654&amp;label=download" alt="Download the latest release"></a>
+  <a href="https://github.com/HsiangNianian/Yapshire/actions/workflows/ci.yml"><img src="https://github.com/HsiangNianian/Yapshire/actions/workflows/ci.yml/badge.svg" alt="Cross-platform CI"></a>
+  <a href="https://github.com/HsiangNianian/Yapshire/releases"><img src="https://img.shields.io/badge/play-Windows%20%2F%20Linux%20%2F%20macOS-7c8060?style=flat-square" alt="Windows, Linux, and macOS"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-3f6654?style=flat-square" alt="AGPL-3.0-only license"></a>
 </p>
 
@@ -31,32 +33,37 @@
 
 ## A quiet street, a few good friends
 
-**Wind Town** is a small native multiplayer game built with **Rust and Bevy**.
+**Yapshire** is a small native multiplayer game built with **Rust and Bevy**.
 Walk past the coffee shop, run and jump along the street, or stop for a chat.
 Animated pixel characters, drifting clouds, warm windows, and speech bubbles
 make a place to spend a little time together.
 
 <p align="center">
-  <img src="docs/screenshots/town.png" alt="Two players walking and chatting outside the Wind Town coffee shop" width="960">
+  <img src="docs/readme/gameplay-en.gif" alt="Actual Yapshire gameplay: two networked players walk, jump, and chat outside the coffee shop" width="960">
 </p>
+
+<p align="center"><sub>Recorded in the game with two connected clients. English interface; bundled pixel font.</sub></p>
 
 ## Download and play
 
-**[Get the latest release](https://github.com/HsiangNianian/WindTown/releases/latest)** —
+**[Get the latest release](https://github.com/HsiangNianian/Yapshire/releases/latest)** —
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.1.0 | After extracting |
+| Platform | Download v0.2.0 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-windows-x64.zip) | Open `wind-town.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-linux-x64.tar.gz) | Run `./wind-town` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-macos-arm64.tar.gz) | Open `Wind Town.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/WindTown/releases/download/v0.1.0/wind-town-0.1.0-macos-x64.tar.gz) | Open `Wind Town.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.2.0/yapshire-0.2.0-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The interface is in English
 and the pixel font is included. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
+
+For multiplayer, have everyone use **v0.2.0 or newer**: this version moves to the
+Yapshire public lobby and LAN discovery identifier.
 
 <details>
 <summary><strong>Platform notes</strong></summary>
@@ -89,10 +96,10 @@ and in the recent chat log. Movement pauses while you type.
 <summary><strong>A look at hosting and the lobby</strong></summary>
 
 <p align="center">
-  <img src="docs/screenshots/host.png" alt="Online hosting asks for a room name and uses the built-in public server" width="960">
+  <img src="docs/screenshots/host-en.png" alt="Online hosting asks for a room name and uses the built-in public server" width="960">
 </p>
 <p align="center">
-  <img src="docs/screenshots/lobby.png" alt="The online lobby lists room names and player counts, with manual connection available" width="960">
+  <img src="docs/screenshots/lobby-en.png" alt="The online lobby lists room names and player counts, with manual connection available" width="960">
 </p>
 
 </details>
@@ -134,8 +141,8 @@ sudo apt-get install build-essential pkg-config libssl-dev libx11-dev libxrandr-
 </details>
 
 ```sh
-git clone https://github.com/HsiangNianian/WindTown.git
-cd WindTown
+git clone https://github.com/HsiangNianian/Yapshire.git
+cd Yapshire
 cargo run --locked
 ```
 
@@ -180,8 +187,8 @@ Conventional Commits used for Release Notes.
 | Local development, networking, or your own server | [Development guide](docs/DEVELOPMENT.md) |
 | Real game, movement, chat, and display checks | [GPU acceptance](docs/DEVELOPMENT.md#gpu-acceptance-and-artwork) |
 | Build matrix and release automation | [CI](docs/DEVELOPMENT.md#cross-platform-ci) · [Releasing](docs/DEVELOPMENT.md#releases-and-changelog) |
-| Report a bug or propose a change | [Issues](https://github.com/HsiangNianian/WindTown/issues) · [Contributing](CONTRIBUTING.md) |
-| What changed | [Changelog](CHANGELOG.md) · [Releases](https://github.com/HsiangNianian/WindTown/releases) |
+| Report a bug or propose a change | [Issues](https://github.com/HsiangNianian/Yapshire/issues) · [Contributing](CONTRIBUTING.md) |
+| What changed | [Changelog](CHANGELOG.md) · [Releases](https://github.com/HsiangNianian/Yapshire/releases) |
 
 ## License
 

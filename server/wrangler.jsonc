@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "wind-town-multiplayer",
+  "name": "yapshire-multiplayer",
   "main": "src/index.js",
   "compatibility_date": "2026-07-08",
   "workers_dev": true,

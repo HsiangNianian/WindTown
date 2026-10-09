@@ -33,7 +33,7 @@ online room code; custom servers also need their address shared with friends.
 The default deployed server is:
 
 ```text
-wss://wind-town-multiplayer.opensource-941.workers.dev
+wss://yapshire-multiplayer.opensource-941.workers.dev
 ```
 
 ### Controls
@@ -130,7 +130,7 @@ cargo test --locked
 # Against a running local Worker:
 cd server && npm test
 # Against the deployed Worker (Node 24+):
-SERVER_URL=wss://wind-town-multiplayer.opensource-941.workers.dev node --use-env-proxy test/rooms.mjs
+SERVER_URL=wss://yapshire-multiplayer.opensource-941.workers.dev node --use-env-proxy test/rooms.mjs
 ```
 
 The Rust tests cover movement, jumping, map bounds, actual Bevy keyboard event
@@ -143,22 +143,36 @@ To exercise the exact Rust client's WSS, proxy, hosting, lobby, joining, movemen
 chat, and disconnect path against a real Worker, from the project root:
 
 ```sh
-WIND_TOWN_TEST_SERVER=wss://wind-town-multiplayer.opensource-941.workers.dev \
+YAPSHIRE_TEST_SERVER=wss://yapshire-multiplayer.opensource-941.workers.dev \
   cargo test --locked cloud_client -- --ignored --nocapture
 ```
 
 ## GPU acceptance and artwork
 
-`WIND_TOWN_SMOKE=display cargo run --locked` checks a fixed window, F11 fullscreen,
+`YAPSHIRE_SMOKE=display cargo run --locked` checks a fixed window, F11 fullscreen,
 and the restored window size, saving screenshots of all three stages under
 `artifacts/`. This uses the real window backend and GPU, with no desktop input injection.
 
 For a full native GPU acceptance run, launch two debug builds with
-`WIND_TOWN_SMOKE=host-lan` and `WIND_TOWN_SMOKE=guest-lan` (or `host-cloud` and
+`YAPSHIRE_SMOKE=host-lan` and `YAPSHIRE_SMOKE=guest-lan` (or `host-cloud` and
 `guest-cloud`). They exercise the actual menu actions, discover and join a room,
 inject Bevy keyboard events for walking/jumping/chat, assert movement and both
 chat deliveries, save screenshots, then close. This opt-in driver bypasses only
 window focus gating; it never sends keys to other desktop applications.
+
+To record the same real session for README media, set
+`YAPSHIRE_RECORD=artifacts/recording` on the host process. The debug driver saves
+15 FPS PNG frames while the two players walk, jump, and chat. Use a new empty
+directory for each recording. For example, launch these in separate terminals:
+
+```sh
+YAPSHIRE_SMOKE=host-cloud YAPSHIRE_RECORD=artifacts/recording cargo run --locked
+YAPSHIRE_SMOKE=guest-cloud cargo run --locked
+```
+
+The English and Chinese READMEs use the same captured gameplay, with localized
+captions outside the game viewport. The game interface remains English. Banner
+lettering is stored as SVG paths, so Chinese text needs no installed fonts.
 
 - Bevy **0.18.1** and [bevy_ecs_tilemap **0.18.1**](https://github.com/StarArawn/bevy_ecs_tilemap).
 - A 480 × 270 world render texture, nearest-neighbor sampling, and integer pixel
@@ -215,17 +229,17 @@ Game and Worker versions move together. Prepare a version from the repository
 root, review the diff, and commit it before tagging:
 
 ```sh
-RELEASE_TAG=v0.1.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.2.0 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
-git commit -m "chore: prepare v0.1.0"
+git commit -m "chore: prepare v0.2.0"
 # Once the release commit is on main:
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin main v0.1.0
+git tag -a v0.2.0 -m "Release v0.2.0"
+git push origin main v0.2.0
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.1.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.2.0"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 

@@ -1,1 +1,1 @@
-wss://wind-town-multiplayer.opensource-941.workers.dev
+wss://yapshire-multiplayer.opensource-941.workers.dev

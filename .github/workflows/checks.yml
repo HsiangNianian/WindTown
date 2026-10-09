@@ -44,9 +44,9 @@ jobs:
       - name: Test Worker rooms and lobby
         run: |
           cd server
-          npm run dev > /tmp/wind-town-worker.log 2>&1 &
+          npm run dev > /tmp/yapshire-worker.log 2>&1 &
           worker_pid=$!
-          trap 'kill "$worker_pid" || true; cat /tmp/wind-town-worker.log' EXIT
+          trap 'kill "$worker_pid" || true; cat /tmp/yapshire-worker.log' EXIT
           for _ in {1..30}; do
             if curl -fsS http://127.0.0.1:8787/health; then break; fi
             sleep 1

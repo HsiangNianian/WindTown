@@ -1,6 +1,6 @@
 # Contributing
 
-Wind Town is a Rust + Bevy game with a Cloudflare Worker in `server/`.
+Yapshire is a Rust + Bevy game with a Cloudflare Worker in `server/`.
 Start with the [README](README.md) and [development guide](docs/DEVELOPMENT.md).
 
 - Keep the interface in English and use the bundled pixel font.

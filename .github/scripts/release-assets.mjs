@@ -20,7 +20,7 @@ export function collectAssets(root = "release-assets", changelog = "CHANGELOG.md
   }
   walk(root);
   const selected = Object.entries(platforms).map(([platform, extension]) => {
-    const name = `wind-town-${version}-${platform}${extension}`;
+    const name = `yapshire-${version}-${platform}${extension}`;
     const matches = files.filter((path) => basename(path) === name);
     assert.equal(matches.length, 1, `Expected one ${name}`);
     return matches[0];

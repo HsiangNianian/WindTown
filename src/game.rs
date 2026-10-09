@@ -283,7 +283,7 @@ pub fn walk(
             && !chat.open
             && session.connected
             && (window.focused
-                || (cfg!(debug_assertions) && std::env::var_os("WIND_TOWN_SMOKE").is_some()));
+                || (cfg!(debug_assertions) && std::env::var_os("YAPSHIRE_SMOKE").is_some()));
         let direction = if enabled {
             (keys.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) as i8
                 - keys.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) as i8) as f32
@@ -502,7 +502,7 @@ pub fn capture(
             .as_secs();
         commands
             .spawn(Screenshot::primary_window())
-            .observe(save_to_disk(format!("artifacts/wind-town-{stamp}.png")));
+            .observe(save_to_disk(format!("artifacts/yapshire-{stamp}.png")));
     }
 }
 

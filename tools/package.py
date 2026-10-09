@@ -19,21 +19,21 @@ def package(root, target):
     root = Path(root)
     platform = TARGETS[target]
     version = tomllib.loads((root / "Cargo.toml").read_text())["package"]["version"]
-    name = f"wind-town-{version}-{platform}"
+    name = f"yapshire-{version}-{platform}"
     windows, mac = "windows" in platform, "macos" in platform
-    binary = root / "target" / target / "release" / ("wind-town.exe" if windows else "wind-town")
+    binary = root / "target" / target / "release" / ("yapshire.exe" if windows else "yapshire")
     if not binary.is_file() or not binary.stat().st_size:
         raise ValueError(f"Build {target} before packaging")
     stage = root / "dist" / name
     if stage.exists():
         shutil.rmtree(stage)
     stage.mkdir(parents=True)
-    executable_dir = stage / "Wind Town.app/Contents/MacOS" if mac else stage
+    executable_dir = stage / "Yapshire.app/Contents/MacOS" if mac else stage
     executable_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(binary, executable_dir / binary.name)
     (executable_dir / binary.name).chmod(0o755)
     shutil.copytree(root / "assets", executable_dir / "assets")
-    for file in ["README.md", "LICENSE.md", "CHANGELOG.md"]:
+    for file in ["README.md", "README.zh-CN.md", "LICENSE.md", "CHANGELOG.md"]:
         shutil.copy2(root / file, stage / file)
     if (root / "docs").is_dir():
         shutil.copytree(root / "docs", stage / "docs")
@@ -41,9 +41,9 @@ def package(root, target):
         if not (executable_dir / required).is_file():
             raise ValueError(f"Missing bundled asset: {required}")
     if mac:
-        with (stage / "Wind Town.app/Contents/Info.plist").open("wb") as file:
-            plistlib.dump({"CFBundleExecutable": "wind-town", "CFBundleName": "Wind Town",
-                          "CFBundleIdentifier": "io.github.hsiangnianian.wind-town",
+        with (stage / "Yapshire.app/Contents/Info.plist").open("wb") as file:
+            plistlib.dump({"CFBundleExecutable": "yapshire", "CFBundleName": "Yapshire",
+                          "CFBundleIdentifier": "io.github.hsiangnianian.yapshire",
                           "CFBundlePackageType": "APPL", "CFBundleVersion": version,
                           "CFBundleShortVersionString": version, "NSHighResolutionCapable": True}, file)
     archive = stage.with_name(name + (".zip" if windows else ".tar.gz"))

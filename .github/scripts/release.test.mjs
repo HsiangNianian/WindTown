@@ -12,7 +12,7 @@ import { collectAssets, publishDraft } from "./release-assets.mjs";
 const entry = (tag) => `## [${tag}] - 2026-10-08\n\n### Features\n\n- Meet friends.\n\n[${tag}]: https://example.com/releases/${tag}\n`;
 
 test("version sync changes only project versions and rejects mismatched tags", () => {
-  const root = mkdtempSync(join(tmpdir(), "wind-town-version-"));
+  const root = mkdtempSync(join(tmpdir(), "yapshire-version-"));
   try {
     mkdirSync(join(root, "server"));
     for (const name of ["Cargo.toml", "Cargo.lock", "server/package.json", "server/package-lock.json"]) cpSync(resolve(name), join(root, name));
@@ -40,16 +40,16 @@ test("changelog merges numerically, preserves existing entries and is idempotent
 });
 
 test("release requires all four archives and a complete uploaded draft", async () => {
-  const root = mkdtempSync(join(tmpdir(), "wind-town-assets-"));
+  const root = mkdtempSync(join(tmpdir(), "yapshire-assets-"));
   try {
     const changelog = join(root, "CHANGELOG.md");
     writeFileSync(changelog, entry("v1.2.3"));
     for (const [platform, ext] of [["linux-x64", "tar.gz"], ["windows-x64", "zip"], ["macos-arm64", "tar.gz"], ["macos-x64", "tar.gz"]]) {
-      writeFileSync(join(root, `wind-town-1.2.3-${platform}.${ext}`), `archive for ${platform}`);
+      writeFileSync(join(root, `yapshire-1.2.3-${platform}.${ext}`), `archive for ${platform}`);
     }
     const expected = collectAssets(root, changelog, "1.2.3");
     assert.equal(expected.length, 6);
-    assert(readFileSync(join(root, "SHA256SUMS"), "utf8").includes("wind-town-1.2.3-windows-x64.zip"));
+    assert(readFileSync(join(root, "SHA256SUMS"), "utf8").includes("yapshire-1.2.3-windows-x64.zip"));
     let uploaded = expected.map((asset) => ({ ...asset, state: "uploaded" }));
     let published = false;
     const github = { paginate: async () => uploaded, rest: { repos: {
@@ -70,13 +70,13 @@ test("release requires all four archives and a complete uploaded draft", async (
     github.rest.repos.getRelease = async () => ({ data: { id: 42, tag_name: "v1.2.3", draft: false } });
     await publishDraft(github, {}, "v1.2.3", 42, expected);
     assert.equal(published, false);
-    rmSync(join(root, "wind-town-1.2.3-linux-x64.tar.gz"));
+    rmSync(join(root, "yapshire-1.2.3-linux-x64.tar.gz"));
     assert.throws(() => collectAssets(root, changelog, "1.2.3"));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test("a concurrent default-branch commit survives changelog writeback and retry", () => {
-  const root = mkdtempSync(join(tmpdir(), "wind-town-git-"));
+  const root = mkdtempSync(join(tmpdir(), "yapshire-git-"));
   const git = (cwd, ...args) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   try {
     const remote = join(root, "remote.git"), work = join(root, "work"), other = join(root, "other");

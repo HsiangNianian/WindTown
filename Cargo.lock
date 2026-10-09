@@ -4859,8 +4859,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "wind-town"
-version = "0.1.0"
+name = "yapshire"
+version = "0.2.0"
 dependencies = [
  "arboard",
  "bevy",

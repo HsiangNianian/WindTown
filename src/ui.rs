@@ -682,7 +682,7 @@ pub fn render(
             })
             .id();
         commands.entity(root).add_child(header);
-        label(&mut commands, header, &art, "Wind Town", 36.0, CREAM);
+        label(&mut commands, header, &art, "Yapshire", 36.0, CREAM);
         label(
             &mut commands,
             header,
@@ -781,8 +781,8 @@ pub fn render(
         ))
         .id();
     commands.entity(root).add_child(panel);
-    label(&mut commands, panel, &art, "W I N D  T O W N", 18.0, MUTED);
-    label(&mut commands, panel, &art, "Wind Town", 48.0, INK);
+    label(&mut commands, panel, &art, "Y A P S H I R E", 18.0, MUTED);
+    label(&mut commands, panel, &art, "Yapshire", 48.0, INK);
     label(
         &mut commands,
         panel,

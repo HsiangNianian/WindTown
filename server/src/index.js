@@ -6,7 +6,7 @@ const active = (ctx) => ctx.getWebSockets().filter((ws) => ws.readyState === 1);
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname === "/health") return Response.json({ ok: true, game: "wind-town", protocol: 1 });
+    if (url.pathname === "/health") return Response.json({ ok: true, game: "yapshire", protocol: 1 });
     if (request.method === "GET" && (url.pathname === "/rooms" || url.pathname === "/lobby")) {
       const listing = await env.LOBBY.getByName("global").fetch("https://internal/list");
       if (url.pathname === "/rooms") return listing;
@@ -18,7 +18,7 @@ export default {
       return new Response(null, { status: 101, webSocket: client });
     }
     const match = /^\/room\/([A-Z0-9]{8})$/.exec(url.pathname);
-    if (!match) return new Response("Wind Town WebSocket server. GET /health", { status: 404 });
+    if (!match) return new Response("Yapshire WebSocket server. GET /health", { status: 404 });
     if (request.method !== "GET" || request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("WebSocket upgrade required", { status: 426 });
     }

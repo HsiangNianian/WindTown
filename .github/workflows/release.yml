@@ -10,7 +10,7 @@ permissions:
 # Different tags must never replace each other's pending runs.
 # Changelog writes handle concurrent default-branch updates with retries.
 concurrency:
-  group: wind-town-release-${{ github.ref }}
+  group: yapshire-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -124,7 +124,7 @@ jobs:
         if: steps.published.outputs.exists != 'true'
         uses: actions/download-artifact@v8
         with:
-          pattern: wind-town-*
+          pattern: yapshire-*
           path: release-assets
 
       - name: Validate local release assets

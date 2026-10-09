@@ -18,7 +18,7 @@ use url::Url;
 pub const PORT: u16 = 4761;
 pub const DEFAULT_SERVER: &str = include_str!("../assets/server-url.txt");
 const DISCOVERY_PORT: u16 = 4762;
-const DISCOVER: &[u8] = b"WIND_TOWN_DISCOVER_V1";
+const DISCOVER: &[u8] = b"YAPSHIRE_DISCOVER_V1";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoomEntry {
@@ -760,9 +760,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires WIND_TOWN_TEST_SERVER pointing to a running Worker"]
+    #[ignore = "requires YAPSHIRE_TEST_SERVER pointing to a running Worker"]
     fn cloud_client_hosts_discovers_joins_moves_and_chats() {
-        let server = std::env::var("WIND_TOWN_TEST_SERVER").unwrap();
+        let server = std::env::var("YAPSHIRE_TEST_SERVER").unwrap();
         fn welcome(link: &Link) -> (u32, String) {
             let mut code = String::new();
             loop {

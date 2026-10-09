@@ -52,10 +52,10 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: std::env::var("WIND_TOWN_SMOKE")
-                            .map(|mode| format!("WIND TOWN - AUTOMATED TEST - {mode}"))
-                            .unwrap_or_else(|_| "WIND TOWN - A little place to be together".into()),
-                        name: Some("wind-town".into()),
+                        title: std::env::var("YAPSHIRE_SMOKE")
+                            .map(|mode| format!("YAPSHIRE - AUTOMATED TEST - {mode}"))
+                            .unwrap_or_else(|_| "YAPSHIRE - A little place to be together".into()),
+                        name: Some("yapshire".into()),
                         resolution: game::WINDOW_SIZE.into(),
                         resizable: false,
                         enabled_buttons: bevy::window::EnabledButtons {
@@ -90,7 +90,8 @@ fn main() {
         );
     #[cfg(debug_assertions)]
     app.init_resource::<smoke::Smoke>()
-        .add_systems(Update, smoke::drive.before(ui::buttons));
+        .add_systems(Update, smoke::drive.before(ui::buttons))
+        .add_systems(Update, smoke::record.after(ui::render));
     app.run();
 }
 
@@ -172,7 +173,7 @@ fn network_events(
                     menu.status.clear();
                     menu.active = None;
                     menu.dirty = true;
-                    session.log("Welcome to Wind Town. Press Enter and say hello.".into());
+                    session.log("Welcome to Yapshire. Press Enter and say hello.".into());
                     info!(
                         "Connected: {} · {} players · you={you}",
                         session.label,

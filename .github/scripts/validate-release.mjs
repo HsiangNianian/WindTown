@@ -12,8 +12,8 @@ export function validateRelease(root = ".", tag = "", write = false) {
   const manifest = JSON.parse(readFileSync(join(root, "server/package.json"), "utf8"));
   const npmLock = JSON.parse(readFileSync(join(root, "server/package-lock.json"), "utf8"));
   const source = cargo.match(/\[package\][\s\S]*?\nversion = "([^"]+)"/);
-  const locked = lock.match(/\[\[package\]\]\nname = "wind-town"\nversion = "([^"]+)"/);
-  assert(source && locked, "Missing Wind Town package version");
+  const locked = lock.match(/\[\[package\]\]\nname = "yapshire"\nversion = "([^"]+)"/);
+  assert(source && locked, "Missing Yapshire package version");
   const version = tag ? tag.slice(1) : source[1];
   assert.match(`v${version}`, /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
   if (write) {

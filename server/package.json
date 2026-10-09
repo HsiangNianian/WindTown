@@ -1,5 +1,5 @@
 {
-  "name": "wind-town-server",
+  "name": "yapshire-server",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,7 @@
   "devDependencies": {
     "wrangler": "4.148.0"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "overrides": {
     "sharp": "0.35.5"
   }

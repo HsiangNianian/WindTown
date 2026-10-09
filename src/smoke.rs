@@ -20,15 +20,21 @@ pub struct Smoke {
     since: f32,
     start_x: f32,
     room: usize,
+    recording: Option<std::path::PathBuf>,
+    frame: u32,
+    last_frame: f32,
 }
 impl Default for Smoke {
     fn default() -> Self {
         Self {
-            mode: std::env::var("WIND_TOWN_SMOKE").unwrap_or_default(),
+            mode: std::env::var("YAPSHIRE_SMOKE").unwrap_or_default(),
             stage: 0,
             since: 0.0,
             start_x: 0.0,
             room: 0,
+            recording: std::env::var_os("YAPSHIRE_RECORD").map(Into::into),
+            frame: 0,
+            last_frame: 0.0,
         }
     }
 }
@@ -142,6 +148,7 @@ pub fn drive(
         1 if now - smoke.since > 0.5 => {
             if host {
                 action = Some(Action::Hosting(cloud));
+                capture(&mut commands, &smoke.mode, "host");
                 true
             } else if let Some(index) = menu
                 .rooms
@@ -156,9 +163,6 @@ pub fn drive(
             }
         }
         2 if now - smoke.since > 0.8 => {
-            if host {
-                capture(&mut commands, &smoke.mode, "host");
-            }
             action = Some(if host {
                 Action::Connect
             } else {
@@ -237,7 +241,7 @@ pub fn drive(
             );
             true
         }
-        8 if now - smoke.since > 3.0 => {
+        8 if now - smoke.since > 5.0 => {
             exit.write(AppExit::Success);
             true
         }
@@ -265,4 +269,30 @@ pub fn drive(
         smoke.stage += 1;
         smoke.since = now;
     }
+}
+
+/// Capture the real rendered multiplayer session for README media.
+pub fn record(mut commands: Commands, mut smoke: ResMut<Smoke>, time: Res<Time>) {
+    let Some(directory) = smoke.recording.as_ref() else {
+        return;
+    };
+    let now = time.elapsed_secs();
+    if !(4..=8).contains(&smoke.stage)
+        || (smoke.stage == 8 && now - smoke.since > 4.0)
+        || now - smoke.last_frame < 1.0 / 15.0
+    {
+        return;
+    }
+    std::fs::create_dir_all(directory).expect("Create recording directory");
+    commands
+        .spawn(Screenshot::primary_window())
+        .observe(save_to_disk(
+            directory.join(format!("{:05}.png", smoke.frame)),
+        ));
+    smoke.last_frame = if smoke.frame == 0 {
+        now
+    } else {
+        smoke.last_frame + 1.0 / 15.0
+    };
+    smoke.frame += 1;
 }
