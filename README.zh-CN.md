@@ -49,19 +49,19 @@
 **[下载最新版本](https://github.com/HsiangNianian/Yapshire/releases/latest)**，完整解压后启动。
 游玩不需要安装 Rust、Node.js，也不需要 Cloudflare 账号。
 
-| 平台 | 下载 v0.4.0 | 解压后启动 |
+| 平台 | 下载 v0.5.0 | 解压后启动 |
 | --- | --- | --- |
-| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-windows-x64.zip) | 打开 `yapshire.exe` |
-| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-linux-x64.tar.gz) | 运行 `./yapshire` |
-| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
-| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
+| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-windows-x64.zip) | 打开 `yapshire.exe` |
+| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-linux-x64.tar.gz) | 运行 `./yapshire` |
+| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
+| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
 
 请解压**整个压缩包**。Windows 和 Linux 需要将 `assets/` 与程序放在一起；
 macOS 的资源已经放在应用内部。像素字体随包提供，包含中英文字形。
 每次发布同时提供 `SHA256SUMS` 校验文件和 `CHANGELOG.md`，更新日志与 Release Notes 同步。
 
-联机时请大家统一使用 **v0.4.0**，确保地图与活动一致。联机协议与 v0.3.0 保持兼容，
-已有的 v0.3.0 Worker 和内置公共服务器都支持本次更新。
+独立服务端与局域网地图同步需要 **v0.5.0 或更新的客户端**。
+客户端仍兼容现有内置公共 Worker，连接时使用其原版地图。详见[开服指南](docs/SELF_HOSTING.zh-CN.md)。
 
 <details>
 <summary><strong>各平台说明</strong></summary>
@@ -74,9 +74,9 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ## 在小镇碰面
 
-1. **自己开房（Host a room）。** 输入昵称，选择局域网（Local network）或在线服务器（Online server）。在线开房只需填写**房间名**，已内置公共服务器。用 **Copy invite** 分享局域网地址或房间邀请码。
+1. **自己开房（Host a room）。** 输入昵称，选择局域网（Local network）或在线服务器（Online server）。在线开房填写**房间名**，可以使用内置公共服务器或自己的服务器。用 **Copy invite** 分享局域网地址或房间邀请码。
 2. **局域网联机（Join LAN）。** 自动寻找同一网络里的房间，点选即可加入，也可以手动填写地址和端口。
-3. **服务器联机（Join server）。** 浏览有名字的公开房间，或输入邀请码加入。也支持填写自己部署的服务器地址。
+3. **服务器联机（Join server）。** 浏览有名字的房间，或输入邀请码加入。可以填写自建服务器地址和可选密码；创建与加入共用已保存的地址，密码仅在本次运行中保留。
 
 大厅每八秒自动刷新，显示房间人数。每个房间最多 **16 人**。
 按 **Enter** 聊天，消息同时显示在角色头顶和最近聊天记录中；输入时角色停止移动。
@@ -85,7 +85,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 <summary><strong>看看开房和大厅</strong></summary>
 
 <p align="center">
-  <img src="docs/screenshots/host-zh.png" alt="在线开房实机截图：填写房间名称，使用内置公共服务器" width="960">
+  <img src="docs/screenshots/host-zh.png" alt="在线开房实机截图：共用的服务器地址、可选密码与房间名称" width="960">
 </p>
 <p align="center">
   <img src="docs/screenshots/lobby-zh.png" alt="在线大厅实机截图：自动显示房间名称和人数，也支持手动连接" width="960">
@@ -93,12 +93,29 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 </details>
 
-房间公开，无账号或密码。局域网自动发现需要处于同一广播网络；发现被阻止时可手动输入地址。
+公共服务和局域网房间没有账号或密码，独立服务端可以设置共用密码。
+局域网自动发现需要处于同一广播网络；发现被阻止时可手动输入地址。
 演示服务器最多容纳 40 个房间。房间生命周期、端口、代理和连接限制见[联网说明](docs/DEVELOPMENT.md#networking)。
+
+## 开自己的服务端
+
+**v0.5.0 新增：**在 [Releases](https://github.com/HsiangNianian/Yapshire/releases/latest)
+下载 **yapshire-server** 压缩包，解压后运行 `./yapshire-server`，Windows 使用
+`./yapshire-server.exe`。无需显卡或游戏窗口，在客户端连接 `ws://127.0.0.1:4761`，
+选择 **MAIN0001** 即可进入。
+
+```sh
+docker run -d --name yapshire --restart unless-stopped \
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.5.0
+```
+
+提供 Linux AMD64/ARM64 镜像，以及四个平台的原生服务端下载。
+服务端与游戏内编辑器共用 `.tmj` 地图，玩家加入时自动接收服务端地图，离开后恢复自己的本地地图。
+自定义地图、密码、Docker Compose、配置与公网连接方式见[中文开服指南](docs/SELF_HOSTING.zh-CN.md)。
 
 ## 去海边钓一会儿
 
-**上方 v0.4.0 下载包已包含钓鱼、渔具店与像素背包。**
+**上方 v0.5.0 下载包已包含钓鱼、渔具店与像素背包。**
 
 沿街向右走，跟着路牌找到 **Tide & Tackle** 渔具店。在门口按 **E** 进入，
 走到 Mara 的柜台前再按 **E** 购物。新昵称拥有 **100 枚金币**：
@@ -135,7 +152,8 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 点击 **Save** 后立即应用，重启也会加载本机保存的地图；**Map files** 打开保存目录，
 其中的 `.tmj` 与图块集可继续在 Tiled 中编辑。原始资源保持不变，**Original** 可将原地图
 恢复为一份可撤销的草稿，退出时会提示保存或丢弃未保存的修改。
-地图只影响这台电脑。金色辅助线标出固定的行走面和交互位置，修改美术不会移动这些位置。
+局域网房主会共享自己保存的地图，独立服务端会下发配置的地图；加入房间不会覆盖本地编辑器文件。
+金色辅助线标出固定的行走面和交互位置，修改美术不会移动这些位置。
 详细操作见[游戏内编辑器指南](docs/DEVELOPMENT.md#in-game-map-editor)。
 
 ## 设置与语言
@@ -190,8 +208,8 @@ cargo run --locked
 - **Fusion Pixel Font：**随游戏打包的像素字体，用于菜单、聊天和气泡。
 - **WebSockets · Cloudflare Workers · Durable Objects：**本地和在线房间共用游戏协议，在线大厅负责发现房间，每个在线房间使用独立 Durable Object。
 
-在线服务代码在 `server/`。自行部署可参考[服务器指南](docs/DEVELOPMENT.md#cloudflare-server)，
-玩家通过 **Join server** 连接。构建前修改 `assets/server-url.txt`，即可设置自己的默认服务器。
+独立服务端代码在 `crates/yapshire-server`，共享地图和协议模块在 `crates/yapshire-shared`。
+另一种部署方式是 `server/` 下的 Cloudflare Worker，见[Worker 指南](docs/DEVELOPMENT.md#cloudflare-server)。
 
 ## 开发与贡献
 
@@ -200,12 +218,12 @@ cargo run --locked
 
 ```sh
 cargo fmt --all -- --check
-cargo test --locked
+cargo test --workspace --locked
 node --test .github/scripts/*.test.mjs
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
-CI 测试并打包四个平台。版本标签触发正式发布，全部检查通过后上传到 GitHub Releases，
+CI 测试并打包四个平台的游戏与服务端，以及 Docker 镜像。版本标签触发正式发布，全部检查通过后上传到 GitHub Releases，
 再使用同一份 Conventional Commits 生成 Release Notes 和更新日志。
 
 | 想了解 | 从这里开始 |

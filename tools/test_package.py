@@ -1,5 +1,6 @@
 """Verify distributable layouts, executable permissions, and required assets."""
 from pathlib import Path
+import json
 import plistlib
 import tarfile
 import tempfile
@@ -53,6 +54,25 @@ class PackagingTests(unittest.TestCase):
                     self.assertTrue(any(name.endswith("assets/maps/" + asset) for name in names))
                 for asset in ["items.png", "frame.png", "slot.png", "water.png"]:
                     self.assertTrue(any(name.endswith("assets/fishing/" + asset) for name in names))
+                server_binary = binary.with_name("yapshire-server.exe" if "windows" in target else "yapshire-server")
+                server_binary.write_bytes(b"headless server fixture")
+                server_archive = package(root, target, server=True)
+                prefix = f"yapshire-server-1.2.3-{platform}/"
+                if server_archive.suffix == ".zip":
+                    with zipfile.ZipFile(server_archive) as file:
+                        names = file.namelist()
+                        config = json.loads(file.read(prefix + "server.json"))
+                else:
+                    with tarfile.open(server_archive) as file:
+                        names = file.getnames()
+                        config = json.load(file.extractfile(prefix + "server.json"))
+                        self.assertEqual(file.getmember(prefix + "yapshire-server").mode & 0o111, 0o111)
+                self.assertIn(prefix + server_binary.name, names)
+                self.assertEqual(config["maps_dir"], "maps")
+                self.assertIn(prefix + "LICENSE.md", names)
+                self.assertFalse(any(".app/" in name or "assets/fonts/" in name for name in names))
+                for asset in ["town.tmj", "tackle-shop.tmj", "harbor.tsj", "harbor.png"]:
+                    self.assertIn(prefix + "maps/" + asset, names)
 
     def test_missing_binary_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

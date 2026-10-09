@@ -57,5 +57,10 @@
   "joined": "{name}来到了小镇。",
   "left": "{name}离开了小镇。",
   "draft_kept": "连接已断开，聊天草稿仍然保留。",
-  "lobby_stopped": "房间搜索已停止，请刷新。"
+  "lobby_stopped": "房间搜索已停止，请刷新。",
+  "server_password": "服务器密码（可选）",
+  "official_server": "使用官方服务器",
+  "server_saved_hint": "连接后会记住服务器地址。\n密码仅在本次运行中保留。",
+  "server_invalid": "服务器地址：{error}",
+  "maps_ready": "服务端地图已验证，正在进入小镇……"
 }

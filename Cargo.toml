@@ -5,8 +5,15 @@ edition = "2024"
 description = "A little pixel town to walk through and talk in."
 license = "AGPL-3.0-only"
 repository = "https://github.com/HsiangNianian/Yapshire"
+default-run = "yapshire"
+
+[workspace]
+members = ["crates/yapshire-shared", "crates/yapshire-server"]
+resolver = "3"
 
 [dependencies]
+yapshire-shared = { path = "crates/yapshire-shared" }
+yapshire-server = { path = "crates/yapshire-server" }
 bevy = { version = "=0.18.1", default-features = false, features = [
   "std", "async_executor", "multi_threaded", "bevy_asset", "bevy_log",
   "bevy_winit", "bevy_window", "bevy_render", "bevy_core_pipeline",

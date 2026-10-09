@@ -57,5 +57,10 @@
   "joined": "{name} joined the town.",
   "left": "{name} left the town.",
   "draft_kept": "Disconnected. Your draft is still here.",
-  "lobby_stopped": "Lobby scan stopped. Please refresh."
+  "lobby_stopped": "Lobby scan stopped. Please refresh.",
+  "server_password": "SERVER PASSWORD (OPTIONAL)",
+  "official_server": "USE OFFICIAL SERVER",
+  "server_saved_hint": "The address is remembered after connecting.\nPasswords stay only for this run.",
+  "server_invalid": "Server address: {error}",
+  "maps_ready": "Server maps verified. Entering the town..."
 }

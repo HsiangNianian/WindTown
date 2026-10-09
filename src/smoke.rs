@@ -11,6 +11,7 @@ use bevy::{
     },
     prelude::*,
     render::view::screenshot::{Screenshot, save_to_disk},
+    window::WindowCloseRequested,
 };
 
 #[derive(Resource)]
@@ -23,6 +24,7 @@ pub struct Smoke {
     recording: Option<std::path::PathBuf>,
     frame: u32,
     last_frame: f32,
+    local_world: Option<yapshire_shared::World>,
 }
 impl Default for Smoke {
     fn default() -> Self {
@@ -35,6 +37,7 @@ impl Default for Smoke {
             recording: std::env::var_os("YAPSHIRE_RECORD").map(Into::into),
             frame: 0,
             last_frame: 0.0,
+            local_world: None,
         }
     }
 }
@@ -45,11 +48,12 @@ pub fn drive(
     time: Res<Time>,
     mut menu: ResMut<Menu>,
     session: Res<Session>,
+    maps: Res<crate::maps::Maps>,
     actors: Query<&Actor>,
     mut buttons: Query<(&Action, &mut Interaction)>,
     mut keyboard: MessageWriter<KeyboardInput>,
     window: Single<(Entity, &Window)>,
-    mut exit: MessageWriter<AppExit>,
+    mut close: MessageWriter<WindowCloseRequested>,
 ) {
     if smoke.mode.is_empty()
         || smoke.mode.starts_with("fishing")
@@ -123,7 +127,7 @@ pub fn drive(
             }
             5 if now - smoke.since > 1.0 => {
                 info!("GPU SMOKE display PASS: fixed window, F11 fullscreen, restored size");
-                exit.write(AppExit::Success);
+                close.write(WindowCloseRequested { window: window.0 });
                 true
             }
             _ => false,
@@ -137,6 +141,13 @@ pub fn drive(
     let mut action = None;
     let advance = match smoke.stage {
         0 if now > 3.0 => {
+            smoke.local_world = Some(maps.world().unwrap());
+            if cloud {
+                if let Ok(server) = std::env::var("YAPSHIRE_TEST_SERVER") {
+                    menu.server = server;
+                }
+                menu.server_password = std::env::var("YAPSHIRE_TEST_PASSWORD").unwrap_or_default();
+            }
             capture(&mut commands, &smoke.mode, "menu");
             menu.name = name.into();
             menu.room_name = "Sunset Club".into();
@@ -175,6 +186,22 @@ pub fn drive(
             true
         }
         3 if session.connected && actors.iter().count() >= 2 => {
+            if let Some(folder) = std::env::var_os("YAPSHIRE_TEST_MAPS") {
+                let expected = yapshire_shared::World::load(std::path::Path::new(&folder)).unwrap();
+                assert_eq!(
+                    maps.world().unwrap(),
+                    expected,
+                    "Runtime must use server maps"
+                );
+                assert_eq!(
+                    session.local_world, smoke.local_world,
+                    "Keep the local world for leaving"
+                );
+                info!(
+                    "GPU SMOKE {} verified server world {}",
+                    smoke.mode, expected.revision
+                );
+            }
             smoke.start_x = mine.unwrap().position.x;
             let (code, letter) = if host {
                 (KeyCode::KeyD, "d")
@@ -246,7 +273,22 @@ pub fn drive(
             true
         }
         8 if now - smoke.since > 5.0 => {
-            exit.write(AppExit::Success);
+            menu.leave = true;
+            menu.go(Page::Home);
+            true
+        }
+        9 if now - smoke.since > 1.0 => {
+            assert!(!session.connected && actors.is_empty());
+            assert_eq!(
+                Some(maps.world().unwrap()),
+                smoke.local_world,
+                "Leaving restores local editor maps"
+            );
+            info!(
+                "GPU SMOKE {} PASS: local maps restored after leaving",
+                smoke.mode
+            );
+            close.write(WindowCloseRequested { window: window.0 });
             true
         }
         _ => false,

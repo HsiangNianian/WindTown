@@ -1,50 +1,10 @@
 use crate::i18n::{Message, tr};
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{io, path::Path};
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub(crate) struct Map {
-    pub width: u32,
-    pub height: u32,
-    tilewidth: u32,
-    tileheight: u32,
-    orientation: String,
-    infinite: bool,
-    tilesets: Vec<TilesetRef>,
-    pub layers: Vec<Layer>,
-    #[serde(flatten)]
-    extra: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-struct TilesetRef {
-    firstgid: u32,
-    source: String,
-    #[serde(flatten)]
-    extra: serde_json::Map<String, serde_json::Value>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub(crate) struct Layer {
-    pub name: String,
-    #[serde(rename = "type")]
-    kind: String,
-    width: u32,
-    height: u32,
-    x: f32,
-    y: f32,
-    #[serde(default)]
-    offsetx: f32,
-    #[serde(default)]
-    offsety: f32,
-    pub visible: bool,
-    opacity: f32,
-    pub data: Vec<u32>,
-    #[serde(flatten)]
-    extra: serde_json::Map<String, serde_json::Value>,
-}
+pub(crate) use yapshire_shared::maps::Map;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Component)]
 pub(crate) enum MapKind {
@@ -118,50 +78,17 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
-impl Map {
-    fn validate(&self, width: u32, tiles: u32) -> io::Result<()> {
-        // shortcut: visual maps share a flat y=0 route; add collision layers before variable terrain.
-        if self.width != width
-            || self.height != 17
-            || self.tilewidth != 16
-            || self.tileheight != 16
-            || self.orientation != "orthogonal"
-            || self.infinite
-            || self.layers.len() != 5
-            || self.tilesets.len() != 1
-            || self.tilesets[0].firstgid != 1
-            || self.tilesets[0].source != "harbor.tsj"
-        {
-            return Err(invalid(
-                "Expected a fixed 16px orthogonal map with five layers and harbor.tsj",
-            ));
-        }
-        for layer in &self.layers {
-            if layer.kind != "tilelayer"
-                || layer.width != self.width
-                || layer.height != self.height
-                || layer.x != 0.0
-                || layer.y != 0.0
-                || layer.offsetx != 0.0
-                || layer.offsety != 0.0
-                || layer.opacity != 1.0
-                || layer.data.len() != (self.width * self.height) as usize
-                || layer.data.iter().any(|gid| {
-                    let index = gid & 0x0fff_ffff;
-                    index > tiles || (*gid != 0 && index == 0) || gid & 0x1000_0000 != 0
-                })
-            {
-                return Err(invalid(&format!(
-                    "Unsupported layer or invalid tile data: {}",
-                    layer.name
-                )));
-            }
-        }
-        Ok(())
-    }
-}
-
 impl Maps {
+    pub fn world(&self) -> io::Result<yapshire_shared::World> {
+        yapshire_shared::validate_tileset(&self.asset_path.join("maps"))?;
+        yapshire_shared::World::new(self.town.clone(), self.shop.clone())
+    }
+
+    pub fn apply_world(&mut self, world: &yapshire_shared::World) {
+        self.replace(MapKind::Town, world.town.clone());
+        self.replace(MapKind::Shop, world.shop.clone());
+    }
+
     pub fn get(&self, kind: MapKind) -> &Map {
         match kind {
             MapKind::Town => &self.town,

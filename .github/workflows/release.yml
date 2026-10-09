@@ -1,4 +1,4 @@
-name: Release game
+name: Release game and server
 
 on:
   push:
@@ -55,9 +55,19 @@ jobs:
     needs: validate
     uses: ./.github/workflows/build.yml
 
+  container:
+    name: Publish server image
+    needs: [validate, checks, build]
+    uses: ./.github/workflows/container.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      publish: true
+
   publish:
     name: Publish release and changelog
-    needs: [validate, checks, build]
+    needs: [validate, checks, build, container]
     runs-on: ubuntu-latest
     permissions:
       contents: write

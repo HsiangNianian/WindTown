@@ -19,7 +19,8 @@ copy its binary and the entire `assets/` directory into the same folder.
 ### Main menu
 
 - **Host a room**: choose **Local network** or **Online server**. Online hosting
-  asks for a room name (up to 24 characters) and uses the built-in public server.
+  asks for a room name (up to 24 characters), server address and optional password.
+  Hosting and joining share the saved address; the public server is the default.
 - **Join LAN**: automatically discovers nearby rooms. Click a room, or enter an
   IP and port yourself. On the same computer, use `127.0.0.1:4761`.
 - **Join server**: automatically lists rooms at the selected server. Click a room,
@@ -27,8 +28,8 @@ copy its binary and the entire `assets/` directory into the same folder.
 
 The lobby refreshes every eight seconds and also has a **Refresh rooms** button.
 Online rooms display their chosen name and current player count; LAN rooms use
-the host's nickname. Empty online rooms
-disappear from the lobby. The **Copy invite** button copies a LAN address or an
+the host's nickname. Empty player-created online rooms disappear from the lobby;
+a dedicated server's configured town stays listed. The **Copy invite** button copies a LAN address or an
 online room code; custom servers also need their address shared with friends.
 
 The default deployed server is:
@@ -114,11 +115,11 @@ Language defaults to English and saves in `settings.json` in the platform's
 normal Yapshire data directory. `YAPSHIRE_SETTINGS_DIR` overrides that directory.
 Missing Chinese translations fall back to English. See the
 [translation guide](TRANSLATING.md) for the modular catalogs, placeholders and
-native acceptance checks. Settings and language selection are included in v0.4.0.
+native acceptance checks. Settings and language selection are included in v0.5.0.
 
 ## In-game map editor
 
-Yapshire v0.4.0 includes **04 MAP EDITOR** on the main menu. Press **4** or
+Yapshire v0.5.0 includes **04 MAP EDITOR** on the main menu. Press **4** or
 **F2** when no text field is selected. This is an offline editing screen; return
 to the main menu from a room before opening it.
 
@@ -168,8 +169,10 @@ Valid local layouts load automatically on startup. Invalid local files fall back
 to the bundled layout and show a message in the editor. An explicit repair/save
 preserves the invalid file as a backup. To remove an override completely, close
 the game and move its `.tmj` out of the saved map folder. Bundled assets are never
-overwritten by the editor. Local maps are not distributed to other players; share
-the same map files manually if a group wants matching layouts.
+overwritten by the editor. LAN hosts share their saved maps automatically.
+Dedicated servers distribute their configured maps; see [self-hosting](SELF_HOSTING.md)
+or the [Chinese guide](SELF_HOSTING.zh-CN.md). Joining never overwrites local editor
+files, and leaving or disconnecting restores the player's own maps.
 
 For native acceptance, use fresh isolated map and settings folders with a debug
 build. This keeps the check in English regardless of your saved language:
@@ -221,7 +224,8 @@ collision or interaction positions: the outdoor shop door is x = 965, indoor
 exit x = 64, counter x = 270, and fishing begins at x = 1304. The pier ends at
 x = 1360; players stop 12 pixels before its edge and cast into the water beyond.
 Preserve these anchors when editing. New platforms, slopes or moved interactions need matching
-gameplay changes; custom maps are not synchronized between multiplayer clients.
+gameplay changes. Protocol 2 shares these visual layouts through LAN hosts and
+dedicated servers. The existing public Worker uses the bundled original map.
 
 To regenerate the original harbor tiles and both default layouts:
 
@@ -241,7 +245,14 @@ the host screen). UDP 4762 handles automatic discovery. Permit these ports on th
 host's firewall. Discovery is limited to the same broadcast network; on routed
 networks, VPNs, or Wi-Fi with client isolation, use the manual address. One LAN
 host per computer uses the discovery port; multiple client windows are supported.
-The LAN room closes when its host leaves.
+The LAN room closes when its host leaves. Its server is the same library used by
+the standalone `yapshire-server`, including map transfer and validation.
+
+**Dedicated server:** runs without Bevy or a GUI in `crates/yapshire-server`.
+It serves a persistent configured room, optional player-created rooms, password
+protection and a validated world snapshot. The client, editor and server share
+Tiled map types and wire messages from `crates/yapshire-shared`. Start with the
+[self-hosting guide](SELF_HOSTING.md) for downloads, Docker and custom maps.
 
 **Online:** a Cloudflare Worker forwards each room to its own SQLite-backed
 Durable Object. Hibernating WebSockets retain player attachments, and a separate
@@ -249,7 +260,10 @@ Lobby Durable Object lists active rooms and removes stale entries. The room
 survives the original host leaving as long as another player remains. Empty rooms
 close; chat history and positions are not saved between sessions.
 
-Both transports use the same JSON message protocol. Positions are transmitted
+All transports share the activity JSON protocol. LAN and dedicated servers
+add a protocol-2 world/acknowledgement exchange before admitting players; the
+client remains compatible with the Worker's original welcome message.
+Positions are transmitted
 at up to 20 Hz only when changed; remote players interpolate between updates.
 Connections have timeouts and heartbeats. Each room allows 16 players, names are
 limited to 12 characters, and chat to 80 characters. The servers bound message
@@ -264,8 +278,8 @@ remains enabled. Authenticated and SOCKS proxies are not currently supported.
 Initial transport failures retry up to three times before showing an error;
 room creation requests are never automatically repeated.
 
-Rooms appear publicly in their server's lobby. There are no user accounts,
-passwords, moderation tools, matchmaking across unrelated servers, or automatic
+Rooms appear in their server's lobby; dedicated servers can protect it with a
+shared password. There are no user accounts, moderation tools, matchmaking across unrelated servers, or automatic
 reconnection; after a disconnect, return to the menu and join again. Treat LAN
 rooms as trusted-network play. Cloudflare account quotas and usage charges apply.
 
@@ -299,7 +313,7 @@ over WebSocket, and `/room/ABCDEFGH` is a room connection.
 
 ```sh
 cargo fmt --all -- --check
-cargo test --locked
+cargo test --workspace --locked
 # Against a running local Worker:
 cd server && npm test
 # Against the deployed Worker (Node 24+):
@@ -311,7 +325,9 @@ bait consumption, selling, save replacement and validation, and fishing wins/los
 at 30, 60 and 144 simulation steps per second.
 The Rust tests cover movement, jumping, map bounds, actual Bevy keyboard event
 delivery, Unicode editing, bubble limits, UDP discovery, two real LAN sockets,
-and bounded TLS failure handling.
+and bounded TLS failure handling. Dedicated-server integration tests cover edited
+map transfer, acknowledgement, passwords, origins, admission races, capacity,
+room isolation, message size/rate limits, cleanup, shutdown and CLI initialization.
 The Worker test covers discovery, lobby cleanup, room isolation, identity, movement,
 shop and fishing flags, invalid activity input,
 Unicode chat, disconnects, missing rooms, and oversize input.
@@ -352,6 +368,12 @@ For a full native GPU acceptance run, launch two debug builds with
 inject Bevy keyboard events for walking/jumping/chat, assert movement and both
 chat deliveries, save screenshots, then close. This opt-in driver bypasses only
 window focus gating; it never sends keys to other desktop applications.
+Set `YAPSHIRE_TEST_SERVER=ws://127.0.0.1:4761` on both cloud-mode processes to test
+a dedicated server, with `YAPSHIRE_TEST_PASSWORD` if needed. Set
+`YAPSHIRE_TEST_MAPS` to that server's map directory to assert that the actual
+runtime world matches both transferred maps. The driver also verifies that
+leaving restores each client's previous local maps. Use isolated
+`YAPSHIRE_SETTINGS_DIR`, `YAPSHIRE_MAP_DIR` and `YAPSHIRE_SAVE_DIR` folders.
 
 To record the same real session for README media, set
 `YAPSHIRE_RECORD=artifacts/recording` on the host process. The debug driver saves
@@ -398,22 +420,23 @@ a reusable build matrix, separate checks, and a tag-triggered release workflow.
 
 | Event | Result |
 | --- | --- |
-| Main branch push / pull request | Project checks, native tests and four platform archives |
+| Main branch push / pull request | Project checks, native tests, eight game/server archives and Docker checks |
 | Documentation-only push / PR | Build skipped |
-| Manual **CI** | Full checks and four platform archives |
-| Manual **Build game** | Four platform archives |
-| `vX.Y.Z` tag | Version checks, tests, four platform archives, verified Release and CHANGELOG update |
+| Manual **CI** | Full checks, eight archives and Docker checks |
+| Manual **Build game and server** | Eight platform archives |
+| `vX.Y.Z` tag | Checks, eight archives, AMD64/ARM64 GHCR image, verified Release and CHANGELOG update |
 
 All builds use lockfiles. Actions artifacts are retained for 14 days. Both CI and
 releases call the same build workflow; release binaries come from the tagged
 commit. Normal jobs use read permissions; only the release publishing job can
-write repository contents.
+write repository contents. The container publishing job separately receives
+`packages: write`; ordinary container checks need only read access.
 
 Local checks:
 
 ```sh
 cargo fmt --all -- --check
-cargo test --locked
+cargo test --workspace --locked
 node --test .github/scripts/*.test.mjs
 python3 -m unittest discover -s tools -p 'test_*.py'
 # With a local Worker already running:
@@ -422,23 +445,23 @@ npm test --prefix server
 
 ## Releases and changelog
 
-Game and Worker versions move together. Prepare a version from the repository
+Game, shared crate, dedicated server and Worker versions move together. Prepare a version from the repository
 root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.4.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.5.0 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
-git add Cargo.toml Cargo.lock server/package.json server/package-lock.json
+git add Cargo.toml Cargo.lock crates/*/Cargo.toml server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: release v0.4.0"
+git commit -m "chore: release v0.5.0"
 # Once the release commit is on main:
-git tag -a v0.4.0 -m "Release v0.4.0"
-git push --atomic origin main v0.4.0
+git tag -a v0.5.0 -m "Release v0.5.0"
+git push --atomic origin main v0.5.0
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.4.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.5.0"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 
@@ -451,7 +474,8 @@ cannot appear in archives already built from the tag. The generated range runs
 from the preceding ancestor version tag to the new tag. The first release uses
 the empty repository bootstrap commit as its baseline.
 
-After every build succeeds, the workflow uploads the four archives,
+After every build and both published container architecture checks succeed,
+the workflow uploads eight game/server archives,
 `SHA256SUMS`, and `CHANGELOG.md` to a **draft**. It verifies the uploaded names,
 sizes and available digests before publishing. Release Notes and the changelog
 entry use the same text. Then a bot merges any missing entry into

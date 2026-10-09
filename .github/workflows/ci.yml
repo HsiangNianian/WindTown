@@ -20,3 +20,8 @@ jobs:
     uses: ./.github/workflows/checks.yml
   build:
     uses: ./.github/workflows/build.yml
+  container:
+    uses: ./.github/workflows/container.yml
+    permissions:
+      contents: read
+      packages: write

@@ -16,6 +16,7 @@ use std::{
 struct Preferences {
     version: u32,
     language: Language,
+    server: String,
     #[serde(flatten)]
     extra: serde_json::Map<String, serde_json::Value>,
 }
@@ -25,6 +26,7 @@ impl Default for Preferences {
         Self {
             version: 1,
             language: Language::English,
+            server: crate::network::DEFAULT_SERVER.trim().into(),
             extra: Default::default(),
         }
     }
@@ -67,6 +69,18 @@ impl Default for Settings {
 }
 
 impl Settings {
+    pub fn server(&self) -> &str {
+        &self.preferences.server
+    }
+
+    pub fn remember_server(&mut self, address: &str) {
+        if self.preferences.server == address {
+            return;
+        }
+        self.preferences.server = address.to_owned();
+        self.persist();
+    }
+
     pub fn load() -> (Self, I18n) {
         let directory = std::env::var_os("YAPSHIRE_SETTINGS_DIR")
             .map(PathBuf::from)
@@ -84,13 +98,15 @@ impl Settings {
             .as_ref()
             .map_err(Clone::clone)
             .and_then(|path| read(path).map_err(|error| error.to_string()));
-        let (preferences, notice) = match loaded {
+        let (mut preferences, notice) = match loaded {
             Ok(preferences) => (preferences, tr("settings.instant")),
             Err(error) => {
                 warn!("Cannot load settings: {error}");
                 (Preferences::default(), tr("settings.load_failed"))
             }
         };
+        preferences.server = crate::network::normalize_server(&preferences.server)
+            .unwrap_or_else(|_| crate::network::DEFAULT_SERVER.trim().into());
         let i18n = I18n {
             language: preferences.language,
         };
@@ -114,6 +130,10 @@ impl Settings {
             i18n.language = language;
         }
         self.preferences.language = language;
+        self.persist();
+    }
+
+    fn persist(&mut self) {
         let result = self.path.as_ref().map_err(Clone::clone).and_then(|path| {
             let bytes =
                 serde_json::to_vec_pretty(&self.preferences).map_err(|error| error.to_string())?;
@@ -445,9 +465,12 @@ mod tests {
         std::fs::write(&path, br#"{"version":1,"language":"en","volume":0.8}"#).unwrap();
         let (mut settings, mut i18n) = Settings::from_path(Ok(path.clone()));
         settings.choose(Language::Chinese, &mut i18n);
+        settings.remember_server("wss://friends.example");
         assert_eq!(i18n.language, Language::Chinese);
-        let (_, reloaded) = Settings::from_path(Ok(path.clone()));
+        let (saved, reloaded) = Settings::from_path(Ok(path.clone()));
         assert_eq!(reloaded.language, Language::Chinese);
+        assert_eq!(saved.server(), "wss://friends.example");
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("password"));
         assert_eq!(read(&path).unwrap().extra["volume"], 0.8);
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -467,6 +490,13 @@ mod tests {
             assert_eq!(i18n.language, Language::English);
             assert_eq!(std::fs::read_to_string(&path).unwrap(), content);
         }
+        std::fs::write(
+            &path,
+            br#"{"server":"https://user:password@example.com/path"}"#,
+        )
+        .unwrap();
+        let (settings, _) = Settings::from_path(Ok(path.clone()));
+        assert_eq!(settings.server(), crate::network::DEFAULT_SERVER.trim());
         let (mut settings, mut i18n) = Settings::from_path(Ok(dir.clone()));
         settings.choose(Language::Chinese, &mut i18n);
         assert_eq!(i18n.language, Language::Chinese);

@@ -19,7 +19,7 @@ export function releaseNotes(changelog, tag) {
   return notes + "\n";
 }
 
-/** Require one archive per platform plus the shared changelog and checksum manifest. */
+/** Require game and server archives per platform, a changelog and checksums. */
 export function collectAssets(root = "release-assets", changelog = "CHANGELOG.md", version = validateRelease()) {
   const platforms = { "linux-x64": ".tar.gz", "windows-x64": ".zip", "macos-arm64": ".tar.gz", "macos-x64": ".tar.gz" };
   const files = [];
@@ -31,12 +31,12 @@ export function collectAssets(root = "release-assets", changelog = "CHANGELOG.md
     }
   }
   walk(root);
-  const selected = Object.entries(platforms).map(([platform, extension]) => {
-    const name = `yapshire-${version}-${platform}${extension}`;
+  const selected = ["yapshire", "yapshire-server"].flatMap((product) => Object.entries(platforms).map(([platform, extension]) => {
+    const name = `${product}-${version}-${platform}${extension}`;
     const matches = files.filter((path) => basename(path) === name);
     assert.equal(matches.length, 1, `Expected one ${name}`);
     return matches[0];
-  });
+  }));
   selected.push(changelog);
   const checksum = join(root, "SHA256SUMS");
   writeFileSync(checksum, selected.map((path) => `${createHash("sha256").update(readFileSync(path)).digest("hex")}  ${basename(path)}`).join("\n") + "\n");

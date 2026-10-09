@@ -34,6 +34,7 @@ struct Session {
     label: String,
     invite: String,
     connected: bool,
+    local_world: Option<yapshire_shared::World>,
     log: VecDeque<i18n::Message>,
 }
 
@@ -58,6 +59,8 @@ fn main() {
     let mut maps = maps::Maps::load(&asset_path).expect("Unable to load Yapshire maps");
     let editor = editor::Editor::load(&mut maps);
     let (settings, i18n) = settings::Settings::load();
+    let mut menu = ui::Menu::default();
+    menu.server = settings.server().into();
     let mut app = App::new();
     app.insert_resource(maps)
         .insert_resource(editor)
@@ -65,7 +68,7 @@ fn main() {
         .insert_resource(i18n)
         .insert_resource(ClearColor(Color::srgb_u8(35, 56, 57)))
         .init_resource::<Session>()
-        .init_resource::<ui::Menu>()
+        .insert_resource(menu)
         .init_resource::<ui::Chat>()
         .init_resource::<fishing::Fishing>()
         .add_plugins(
@@ -146,9 +149,14 @@ fn connect_requests(
     mut menu: ResMut<ui::Menu>,
     mut session: ResMut<Session>,
     mut chat: ResMut<ui::Chat>,
+    mut maps: ResMut<maps::Maps>,
+    mut settings: ResMut<settings::Settings>,
     actors: Query<Entity, Or<(With<game::Actor>, With<game::Bubble>)>>,
 ) {
     if menu.leave {
+        if let Some(world) = session.local_world.take() {
+            maps.apply_world(&world);
+        }
         *session = Session::default();
         *chat = ui::Chat::default();
         for entity in &actors {
@@ -157,7 +165,32 @@ fn connect_requests(
         menu.leave = false;
     }
     if let Some(mode) = menu.request.take() {
-        session.link = Some(network::start(mode, menu.name.clone()));
+        let world = match maps.world() {
+            Ok(world) => world,
+            Err(error) => {
+                menu.status = tr("menu.connection_error").arg("error", error.to_string());
+                menu.dirty = true;
+                return;
+            }
+        };
+        session.local_world = Some(world.clone());
+        if matches!(
+            mode,
+            network::Mode::HostCloud { .. } | network::Mode::JoinCloud { .. }
+        ) {
+            settings.remember_server(&menu.server);
+        }
+        // Older Workers have no map transfer. Their default world must not inherit
+        // a player's local editor override. LAN hosts publish their own saved maps.
+        if !matches!(mode, network::Mode::HostLan(_)) {
+            maps.apply_world(&yapshire_shared::World::bundled());
+        }
+        session.link = Some(network::start_with_options(
+            mode,
+            menu.name.clone(),
+            world,
+            menu.server_password.clone(),
+        ));
         menu.status = tr("menu.connecting_status");
         menu.connecting = true;
         menu.dirty = true;
@@ -169,6 +202,7 @@ fn network_events(
     mut session: ResMut<Session>,
     mut menu: ResMut<ui::Menu>,
     art: Res<game::Art>,
+    mut maps: ResMut<maps::Maps>,
     mut actors: Query<(Entity, &mut game::Actor)>,
     bubbles: Query<(Entity, &game::Bubble)>,
 ) {
@@ -202,6 +236,9 @@ fn network_events(
                 session.invite = invite;
             }
             Event::Error(error) => {
+                if let Some(world) = session.local_world.take() {
+                    maps.apply_world(&world);
+                }
                 warn!("{error}");
                 menu.status = tr("menu.connection_error").arg("error", error);
                 session.log(menu.status.clone());
@@ -211,6 +248,10 @@ fn network_events(
                 menu.dirty = true;
             }
             Event::Message(message) => match message {
+                ServerMessage::World { world } => {
+                    maps.apply_world(&world);
+                    menu.status = tr("menu.maps_ready");
+                }
                 ServerMessage::Welcome { you, players } => {
                     session.you = Some(you);
                     session.connected = true;

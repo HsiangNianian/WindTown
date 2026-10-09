@@ -1,0 +1,14 @@
+services:
+  yapshire:
+    image: ghcr.io/hsiangnianian/yapshire-server:latest
+    ports:
+      - "4761:4761"
+    environment:
+      YAPSHIRE_SERVER_PASSWORD: ${YAPSHIRE_SERVER_PASSWORD:-}
+    # Run `yapshire-server --init ./my-town` before enabling this mount:
+    # volumes:
+    #   - ./my-town:/data:ro
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

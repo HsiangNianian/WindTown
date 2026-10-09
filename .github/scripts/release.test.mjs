@@ -24,7 +24,10 @@ test("version sync changes only project versions and rejects mismatched tags", (
   const root = mkdtempSync(join(tmpdir(), "yapshire-version-"));
   try {
     mkdirSync(join(root, "server"));
-    for (const name of ["Cargo.toml", "Cargo.lock", "server/package.json", "server/package-lock.json"]) cpSync(resolve(name), join(root, name));
+    for (const name of ["Cargo.toml", "Cargo.lock", "server/package.json", "server/package-lock.json", "crates/yapshire-shared/Cargo.toml", "crates/yapshire-server/Cargo.toml"]) {
+      mkdirSync(join(root, name, ".."), { recursive: true });
+      cpSync(resolve(name), join(root, name));
+    }
     const dependencies = JSON.parse(readFileSync(join(root, "server/package-lock.json"))).packages;
     const current = validateRelease(root);
     assert.throws(() => validateRelease(root, "v9.8.7"));
@@ -48,16 +51,17 @@ test("changelog merges numerically, preserves existing entries and is idempotent
   assert.throws(() => mergeChangelog(current, "missing", "v1.0.0"));
 });
 
-test("release requires all four archives and a complete uploaded draft", async () => {
+test("release requires all eight game/server archives and a complete uploaded draft", async () => {
   const root = mkdtempSync(join(tmpdir(), "yapshire-assets-"));
   try {
     const changelog = join(root, "CHANGELOG.md");
     writeFileSync(changelog, entry("v1.2.3"));
     for (const [platform, ext] of [["linux-x64", "tar.gz"], ["windows-x64", "zip"], ["macos-arm64", "tar.gz"], ["macos-x64", "tar.gz"]]) {
       writeFileSync(join(root, `yapshire-1.2.3-${platform}.${ext}`), `archive for ${platform}`);
+      writeFileSync(join(root, `yapshire-server-1.2.3-${platform}.${ext}`), `server archive for ${platform}`);
     }
     const expected = collectAssets(root, changelog, "1.2.3");
-    assert.equal(expected.length, 6);
+    assert.equal(expected.length, 10);
     assert(readFileSync(join(root, "SHA256SUMS"), "utf8").includes("yapshire-1.2.3-windows-x64.zip"));
     let uploaded = expected.map((asset) => ({ ...asset, state: "uploaded" }));
     let published = false;
@@ -79,7 +83,7 @@ test("release requires all four archives and a complete uploaded draft", async (
     github.rest.repos.getRelease = async () => ({ data: { id: 42, tag_name: "v1.2.3", draft: false } });
     await publishDraft(github, {}, "v1.2.3", 42, expected);
     assert.equal(published, false);
-    rmSync(join(root, "yapshire-1.2.3-linux-x64.tar.gz"));
+    rmSync(join(root, "yapshire-server-1.2.3-linux-x64.tar.gz"));
     assert.throws(() => collectAssets(root, changelog, "1.2.3"));
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

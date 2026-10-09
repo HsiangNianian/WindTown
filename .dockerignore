@@ -1,0 +1,11 @@
+*
+!Cargo.toml
+!Cargo.lock
+!LICENSE.md
+!crates/
+!crates/**
+!src/
+!src/**
+!assets/
+!assets/maps/
+!assets/maps/**

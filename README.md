@@ -51,21 +51,21 @@ make a place to spend a little time together.
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.4.0 | After extracting |
+| Platform | Download v0.5.0 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-windows-x64.zip) | Open `yapshire.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-linux-x64.tar.gz) | Run `./yapshire` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.4.0/yapshire-0.4.0-macos-x64.tar.gz) | Open `Yapshire.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.0/yapshire-0.5.0-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The bundled pixel font supports
 English and Simplified Chinese. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
-For multiplayer, have everyone use **v0.4.0** for the same maps and activities.
-The multiplayer protocol is unchanged from v0.3.0, so existing v0.3.0 Workers
-and the built-in public server also support this release.
+Use **v0.5.0 or later** clients for dedicated servers and LAN map synchronization.
+The client also connects to the existing built-in public Worker, using its
+original map. See [self-hosting](docs/SELF_HOSTING.md) for compatibility and setup.
 
 <details>
 <summary><strong>Platform notes</strong></summary>
@@ -83,12 +83,13 @@ and the built-in public server also support this release.
 ## Meet me in town
 
 1. **Host a room.** Enter a nickname and choose **Local network** or **Online
-   server**. Online hosting only asks for a **room name**; the public server is
-   already configured. Use **Copy invite** to share the LAN address or room code.
+   server**. Enter a **room name** and keep the public server or choose your own.
+   Use **Copy invite** to share the LAN address or room code.
 2. **Join LAN.** Rooms on the same network appear automatically. Click one to
    join, or enter an address and port yourself.
 3. **Join server.** Browse named public rooms or enter an invite code. You can
-   also enter a server address to connect to your own deployment.
+   also enter your own server address and optional shared password. Hosting and
+   joining share the saved address; passwords stay only for the current run.
 
 Lobbies refresh every eight seconds and show player counts. Each room holds up
 to **16 players**. Press **Enter** to chat; messages appear above your character
@@ -98,7 +99,7 @@ and in the recent chat log. Movement pauses while you type.
 <summary><strong>A look at hosting and the lobby</strong></summary>
 
 <p align="center">
-  <img src="docs/screenshots/host-en.png" alt="Online hosting asks for a room name and uses the built-in public server" width="960">
+  <img src="docs/screenshots/host-en.png" alt="Online hosting with a shared server address, optional password and room name" width="960">
 </p>
 <p align="center">
   <img src="docs/screenshots/lobby-en.png" alt="The online lobby lists room names and player counts, with manual connection available" width="960">
@@ -106,14 +107,33 @@ and in the recent chat log. Movement pauses while you type.
 
 </details>
 
-Rooms are public, without accounts or passwords. LAN discovery needs the same
+Public-service and LAN rooms have no accounts or passwords. Dedicated servers
+can require a shared password. LAN discovery needs the same
 broadcast network; use a manual address when discovery is blocked. The demo
 server supports up to 40 rooms. See the [networking guide](docs/DEVELOPMENT.md#networking)
 for room lifetimes, ports, proxies, and connection limits.
 
+## Run your own server
+
+**New in v0.5.0:** download a **yapshire-server** archive from
+[Releases](https://github.com/HsiangNianian/Yapshire/releases/latest), extract it,
+and run `./yapshire-server` (`./yapshire-server.exe` on Windows). No GPU or game
+window is required. Join `ws://127.0.0.1:4761` and choose **MAIN0001**.
+
+```sh
+docker run -d --name yapshire --restart unless-stopped \
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.5.0
+```
+
+The Linux AMD64/ARM64 image and four native server downloads use the same
+`.tmj` files as the in-game editor. The server sends its maps to joining players;
+their own saved maps are restored on leaving. Follow the
+[self-hosting guide](docs/SELF_HOSTING.md) for custom maps, passwords, Docker
+Compose, configuration and public access.
+
 ## An afternoon of fishing
 
-**Included in the v0.4.0 downloads above.**
+**Included in the v0.5.0 downloads above.**
 
 Walk east past the street sign to **Tide & Tackle**. Press **E** at the door to
 enter, walk up to Mara's counter, and press **E** again to shop. A new nickname
@@ -158,7 +178,8 @@ Pixel tool icons have shortcut badges and hover descriptions; eye icons toggle l
 launch. **Map files** opens the saved `.tmj` files and their Tiled-compatible
 tileset. Original bundled maps stay intact; **Original** restores one as an
 undoable draft. Leaving with unsaved edits asks whether to save or discard them.
-These changes are local to your computer. Gold guides show the fixed walking
+LAN hosting shares your saved maps; dedicated servers distribute their configured
+maps. Joining never overwrites your local editor files. Gold guides show the fixed walking
 surface and interaction points; editing artwork does not move them.
 See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
 
@@ -223,10 +244,9 @@ for hosting a LAN room.
   for local rooms and online play, with a shared online lobby and a separate
   Durable Object for each online room.
 
-Want to host your own online service? The Worker lives in `server/`. Follow the
-[server setup guide](docs/DEVELOPMENT.md#cloudflare-server); players can connect
-through **Join server**. Set `assets/server-url.txt` when building a client that
-hosts on your deployment by default.
+The headless server lives in `crates/yapshire-server`, with shared map and protocol
+types in `crates/yapshire-shared`. The alternative Cloudflare Worker remains in
+`server/`; see [Worker setup](docs/DEVELOPMENT.md#cloudflare-server).
 
 ## Development and contributions
 
@@ -236,12 +256,13 @@ reproduce. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```sh
 cargo fmt --all -- --check
-cargo test --locked
+cargo test --workspace --locked
 node --test .github/scripts/*.test.mjs
 python3 -m unittest discover -s tools -p 'test_*.py'
 ```
 
-CI tests and packages all four platforms. Version tags publish the same builds
+CI tests and packages game and server on all four platforms, plus the Docker image.
+Version tags publish the same builds
 to GitHub Releases after checks pass, then update the changelog from the same
 Conventional Commits used for Release Notes.
 

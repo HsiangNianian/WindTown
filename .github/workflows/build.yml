@@ -1,4 +1,4 @@
-name: Build game
+name: Build game and server
 
 on:
   workflow_dispatch:
@@ -42,15 +42,17 @@ jobs:
         with:
           key: ${{ matrix.target }}
           cache-on-failure: true
-      - name: Test native game code
-        run: cargo test --release --locked --target ${{ matrix.target }}
-      - name: Build native executable
-        run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: Test workspace and real server connections
+        run: cargo test --workspace --release --locked --target ${{ matrix.target }}
+      - name: Build native executables
+        run: cargo build --workspace --release --locked --target ${{ matrix.target }}
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - name: Package game, assets and notices
-        run: python tools/package.py --target ${{ matrix.target }}
+      - name: Package game, standalone server, maps and notices
+        run: |
+          python tools/package.py --target ${{ matrix.target }}
+          python tools/package.py --target ${{ matrix.target }} --server
       - uses: actions/upload-artifact@v7
         with:
           name: yapshire-${{ matrix.platform }}-${{ github.sha }}

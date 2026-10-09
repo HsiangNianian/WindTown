@@ -24,6 +24,7 @@ pub enum Field {
     Name,
     Address,
     Server,
+    ServerPassword,
     Room,
     RoomName,
     Port,
@@ -35,7 +36,8 @@ pub struct Menu {
     pub active: Option<Field>,
     pub name: String,
     address: String,
-    server: String,
+    pub(crate) server: String,
+    pub(crate) server_password: String,
     room: String,
     pub(crate) room_name: String,
     port: String,
@@ -61,6 +63,7 @@ impl Default for Menu {
             name: "Wanderer".into(),
             address: "127.0.0.1:4761".into(),
             server: network::DEFAULT_SERVER.trim().into(),
+            server_password: String::new(),
             room: String::new(),
             room_name: String::new(),
             port: network::PORT.to_string(),
@@ -86,6 +89,7 @@ impl Menu {
             Field::Name => &self.name,
             Field::Address => &self.address,
             Field::Server => &self.server,
+            Field::ServerPassword => &self.server_password,
             Field::Room => &self.room,
             Field::RoomName => &self.room_name,
             Field::Port => &self.port,
@@ -95,7 +99,17 @@ impl Menu {
         match field {
             Field::Name => &mut self.name,
             Field::Address => &mut self.address,
-            Field::Server => &mut self.server,
+            Field::Server => {
+                self.server_password.clear();
+                self.rooms.clear();
+                self.scan = None;
+                &mut self.server
+            }
+            Field::ServerPassword => {
+                self.rooms.clear();
+                self.scan = None;
+                &mut self.server_password
+            }
             Field::Room => &mut self.room,
             Field::RoomName => &mut self.room_name,
             Field::Port => &mut self.port,
@@ -104,10 +118,12 @@ impl Menu {
     fn fields(&self) -> Vec<Field> {
         match self.page {
             Page::Home => vec![Field::Name],
-            Page::Host if self.cloud_host => vec![Field::RoomName],
+            Page::Host if self.cloud_host => {
+                vec![Field::Server, Field::ServerPassword, Field::RoomName]
+            }
             Page::Host => vec![Field::Port],
             Page::Lan => vec![Field::Address],
-            Page::Cloud => vec![Field::Server, Field::Room],
+            Page::Cloud => vec![Field::Server, Field::ServerPassword, Field::Room],
             Page::Playing | Page::Editor => vec![],
         }
     }
@@ -130,10 +146,11 @@ impl Menu {
         }
         let cloud = self.page == Page::Cloud;
         let address = self.server.clone();
+        let password = self.server_password.clone();
         let (send, receive) = mpsc::channel();
         std::thread::spawn(move || {
             let result = if cloud {
-                network::discover_cloud(&address)
+                network::discover_cloud_with_password(&address, &password)
             } else {
                 network::discover_lan()
             };
@@ -146,6 +163,15 @@ impl Menu {
     fn connect(&mut self) {
         if self.connecting {
             return;
+        }
+        if self.page == Page::Cloud || (self.page == Page::Host && self.cloud_host) {
+            match network::normalize_server(&self.server) {
+                Ok(address) => self.server = address,
+                Err(error) => {
+                    self.status = tr("menu.server_invalid").arg("error", error);
+                    return;
+                }
+            }
         }
         self.name = network::clean(&self.name, 12);
         if self.name.is_empty() {
@@ -160,7 +186,7 @@ impl Menu {
                     None
                 } else {
                     Some(Mode::HostCloud {
-                        server: network::DEFAULT_SERVER.trim().into(),
+                        server: self.server.clone(),
                         room_name: self.room_name.clone(),
                     })
                 }
@@ -200,6 +226,7 @@ pub enum Action {
     Back,
     Copy,
     Refresh,
+    OfficialServer,
     JoinRoom(usize),
     NextRooms,
     Fishing(crate::fishing::Action),
@@ -279,6 +306,17 @@ pub fn buttons(
                 };
             }
             Action::Refresh => menu.refresh_rooms(),
+            Action::OfficialServer => {
+                menu.server = network::DEFAULT_SERVER.trim().into();
+                menu.server_password.clear();
+                menu.scan = None;
+                menu.rooms.clear();
+                menu.dirty = true;
+                menu.active = None;
+                if menu.page == Page::Cloud {
+                    menu.refresh_rooms();
+                }
+            }
             Action::JoinRoom(index) => {
                 if let Some(room) = menu.rooms.get(index).cloned() {
                     if menu.page == Page::Lan {
@@ -561,6 +599,7 @@ fn field_limit(field: Field) -> usize {
         Field::Room => 8,
         Field::RoomName => 24,
         Field::Port => 5,
+        Field::ServerPassword => 128,
         _ => 200,
     }
 }
@@ -816,7 +855,7 @@ pub fn render(
                 width: px(456),
                 padding: UiRect::all(px(28)),
                 flex_direction: FlexDirection::Column,
-                row_gap: px(13),
+                row_gap: px(if menu.page == Page::Home { 13 } else { 9 }),
                 border: UiRect::all(px(3)),
                 ..default()
             },
@@ -826,8 +865,17 @@ pub fn render(
         .id();
     commands.entity(root).add_child(panel);
     label(&mut commands, panel, &art, "Y A P S H I R E", 18.0, MUTED);
-    label(&mut commands, panel, &art, "Yapshire", 48.0, INK);
-    label(&mut commands, panel, &art, tr("menu.intro"), 18.0, MUTED);
+    label(
+        &mut commands,
+        panel,
+        &art,
+        "Yapshire",
+        if menu.page == Page::Home { 48.0 } else { 36.0 },
+        INK,
+    );
+    if menu.page == Page::Home {
+        label(&mut commands, panel, &art, tr("menu.intro"), 18.0, MUTED);
+    }
     match menu.page {
         Page::Home => {
             field(&mut commands, panel, &art, tr("menu.nickname"), Field::Name);
@@ -882,12 +930,8 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                if menu.cloud_host {
-                    tr("menu.host_lan")
-                } else {
-                    tr("menu.host_lan")
-                },
-                tr("menu.host_lan_hint"),
+                tr("menu.host_lan"),
+                "",
                 Action::Hosting(false),
                 !menu.cloud_host,
             );
@@ -895,16 +939,20 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
-                if menu.cloud_host {
-                    tr("menu.host_cloud")
-                } else {
-                    tr("menu.host_cloud")
-                },
-                tr("menu.host_cloud_hint"),
+                tr("menu.host_cloud"),
+                "",
                 Action::Hosting(true),
                 menu.cloud_host,
             );
             if menu.cloud_host {
+                field(&mut commands, panel, &art, tr("menu.server"), Field::Server);
+                field(
+                    &mut commands,
+                    panel,
+                    &art,
+                    tr("menu.server_password"),
+                    Field::ServerPassword,
+                );
                 field(
                     &mut commands,
                     panel,
@@ -1000,6 +1048,13 @@ pub fn render(
                 &mut commands,
                 panel,
                 &art,
+                tr("menu.server_password"),
+                Field::ServerPassword,
+            );
+            field(
+                &mut commands,
+                panel,
+                &art,
                 tr("menu.room_code"),
                 Field::Room,
             );
@@ -1042,18 +1097,40 @@ pub fn render(
             position_type: PositionType::Absolute,
             left: percent(59),
             top: percent(15),
+            width: px(500),
             flex_direction: FlexDirection::Column,
             row_gap: px(16),
             ..default()
         })
         .id();
     commands.entity(root).add_child(caption);
+    if menu.page == Page::Cloud || (menu.page == Page::Host && menu.cloud_host) {
+        button(
+            &mut commands,
+            caption,
+            &art,
+            tr("menu.official_server"),
+            "",
+            Action::OfficialServer,
+            false,
+        );
+        if menu.page == Page::Host {
+            label(
+                &mut commands,
+                caption,
+                &art,
+                tr("menu.server_saved_hint"),
+                16.0,
+                CREAM,
+            );
+        }
+    }
     label(
         &mut commands,
         caption,
         &art,
         tr("menu.caption"),
-        36.0,
+        if menu.page == Page::Cloud { 28.0 } else { 36.0 },
         CREAM,
     );
     if matches!(menu.page, Page::Lan | Page::Cloud) {
@@ -1162,7 +1239,9 @@ pub fn render(
             true,
         );
     }
-    label(&mut commands, caption, &art, tr("menu.slow"), 16.0, CREAM);
+    if menu.page != Page::Cloud {
+        label(&mut commands, caption, &art, tr("menu.slow"), 16.0, CREAM);
+    }
     let footer = commands
         .spawn(Node {
             position_type: PositionType::Absolute,
@@ -1208,9 +1287,20 @@ pub fn refresh(
     };
     for (mut text, field, status, input, log, room) in &mut text {
         let value: Message = if let Some(FieldValue(field)) = field {
-            let value = menu.field(*field);
+            let raw = menu.field(*field);
+            let masked = "*".repeat(raw.chars().count());
+            let value = if *field == Field::ServerPassword {
+                masked.as_str()
+            } else {
+                raw
+            };
             if menu.active == Some(*field) {
-                format!("{}{}{}", value, menu.preedit, cursor).into()
+                let preedit = if *field == Field::ServerPassword {
+                    "*".repeat(menu.preedit.chars().count())
+                } else {
+                    menu.preedit.clone()
+                };
+                format!("{value}{preedit}{cursor}").into()
             } else if value.is_empty() {
                 tr("menu.type")
             } else {
@@ -1317,22 +1407,31 @@ mod tests {
     }
 
     #[test]
-    fn public_host_uses_a_room_name_and_the_default_server() {
+    fn host_and_join_use_the_selected_server() {
         let mut menu = Menu {
             page: Page::Host,
             cloud_host: true,
             server: "ws://other.example".into(),
             ..default()
         };
-        assert!(menu.fields() == vec![Field::RoomName]);
+        assert!(menu.fields() == vec![Field::Server, Field::ServerPassword, Field::RoomName]);
         menu.connect();
         assert!(menu.request.is_none());
         assert_eq!(menu.status, tr("menu.room_required"));
         menu.room_name = " Sunset & Friends\n ".into();
         menu.connect();
         assert!(
-            matches!(menu.request, Some(Mode::HostCloud { server, room_name }) if server == network::DEFAULT_SERVER.trim() && room_name == "Sunset & Friends")
+            matches!(menu.request.take(), Some(Mode::HostCloud { server, room_name }) if server == "ws://other.example" && room_name == "Sunset & Friends")
         );
+        menu.page = Page::Cloud;
+        menu.room = "MAIN0001".into();
+        menu.connect();
+        assert!(
+            matches!(menu.request.take(), Some(Mode::JoinCloud { server, room }) if server == "ws://other.example" && room == "MAIN0001")
+        );
+        menu.server_password = "private-password".into();
+        *menu.field_mut(Field::Server) = "wss://new.example".into();
+        assert!(menu.server_password.is_empty());
     }
     #[test]
     fn text_input_preserves_unicode_and_replaces_selection() {

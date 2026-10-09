@@ -20,15 +20,8 @@ pub const DEFAULT_SERVER: &str = include_str!("../assets/server-url.txt");
 const DISCOVERY_PORT: u16 = 4762;
 const DISCOVER: &[u8] = b"YAPSHIRE_DISCOVER_V1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoomEntry {
-    #[serde(default)]
-    pub code: String,
-    pub name: String,
-    pub players: usize,
-    #[serde(default)]
-    pub address: String,
-}
+pub use yapshire_shared::protocol::{ClientMessage, Player, RoomEntry, ServerMessage, clean};
+use yapshire_shared::{MAX_WORLD_BYTES, PROTOCOL_VERSION, World};
 
 #[derive(Serialize, Deserialize)]
 struct LanAnnouncement {
@@ -83,11 +76,19 @@ fn scan_lan(port: u16) -> Result<Vec<RoomEntry>, String> {
     Ok(rooms)
 }
 
+#[cfg(test)]
 pub fn discover_cloud(address: &str) -> Result<Vec<RoomEntry>, String> {
+    discover_cloud_with_password(address, "")
+}
+
+pub fn discover_cloud_with_password(
+    address: &str,
+    password: &str,
+) -> Result<Vec<RoomEntry>, String> {
     let mut url = url_for(address, "", "", false)?;
     url.set_path("/lobby");
     url.set_query(None);
-    let mut socket = open_socket(&url, &AtomicBool::new(false))?;
+    let mut socket = open_socket_authorized(&url, &AtomicBool::new(false), password)?;
     #[derive(Deserialize)]
     struct Listing {
         rooms: Vec<RoomEntry>,
@@ -110,48 +111,6 @@ pub fn discover_cloud(address: &str) -> Result<Vec<RoomEntry>, String> {
             r
         })
         .collect())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Player {
-    pub id: u32,
-    pub name: String,
-    pub x: f32,
-    pub y: f32,
-    pub moving: bool,
-    pub facing: bool,
-    #[serde(default)]
-    pub indoors: bool,
-    #[serde(default)]
-    pub fishing: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ClientMessage {
-    Move {
-        x: f32,
-        y: f32,
-        moving: bool,
-        facing: bool,
-        #[serde(default)]
-        indoors: bool,
-        #[serde(default)]
-        fishing: bool,
-    },
-    Chat {
-        text: String,
-    },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ServerMessage {
-    Welcome { you: u32, players: Vec<Player> },
-    Joined { player: Player },
-    Moved { player: Player },
-    Chat { id: u32, text: String },
-    Left { id: u32 },
 }
 
 pub enum Mode {
@@ -179,17 +138,26 @@ impl Drop for Link {
     }
 }
 
-pub fn clean(text: &str, limit: usize) -> String {
-    text.chars().filter(|c| !c.is_control() && !matches!(*c, '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2060}'..='\u{206f}')).take(limit).collect::<String>().trim().to_owned()
+#[cfg(test)]
+pub fn start(mode: Mode, name: String) -> Link {
+    start_with_options(mode, name, World::bundled(), String::new())
 }
 
-pub fn start(mode: Mode, name: String) -> Link {
+pub fn start_with_options(mode: Mode, name: String, world: World, password: String) -> Link {
     let (send, outgoing) = mpsc::sync_channel(64);
     let (incoming, events) = mpsc::sync_channel(256);
     let stop = Arc::new(AtomicBool::new(false));
     let thread_stop = stop.clone();
     thread::spawn(move || {
-        if let Err(err) = client(mode, &name, outgoing, &incoming, thread_stop.clone()) {
+        if let Err(err) = client(
+            mode,
+            &name,
+            outgoing,
+            &incoming,
+            thread_stop.clone(),
+            world,
+            &password,
+        ) {
             let _ = incoming.try_send(Event::Error(err));
         }
         thread_stop.store(true, Ordering::Relaxed);
@@ -202,6 +170,7 @@ pub fn start(mode: Mode, name: String) -> Link {
 }
 
 fn url_for(address: &str, room: &str, name: &str, create: bool) -> Result<Url, String> {
+    let address = normalize_server(address)?;
     let address = address.trim();
     let address = if address.contains("://") {
         address.to_owned()
@@ -223,14 +192,45 @@ fn url_for(address: &str, room: &str, name: &str, create: bool) -> Result<Url, S
     url.set_fragment(None);
     url.query_pairs_mut()
         .append_pair("name", name)
-        .append_pair("create", if create { "1" } else { "0" });
+        .append_pair("create", if create { "1" } else { "0" })
+        .append_pair("protocol", &PROTOCOL_VERSION.to_string());
     Ok(url)
+}
+
+pub fn normalize_server(address: &str) -> Result<String, String> {
+    let address = address.trim();
+    if address.is_empty() || address.len() > 256 {
+        return Err("Enter a server address (up to 256 bytes)".into());
+    }
+    let address = if address.contains("://") {
+        address.to_owned()
+    } else {
+        format!("ws://{address}")
+    };
+    let mut url = Url::parse(&address).map_err(|_| "Invalid server address")?;
+    let scheme = match url.scheme() {
+        "https" | "wss" => "wss",
+        "http" | "ws" => "ws",
+        _ => return Err("Use ws:// or wss://".into()),
+    };
+    url.set_scheme(scheme)
+        .map_err(|_| "Invalid server address")?;
+    if url.host_str().is_none()
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || !matches!(url.path(), "" | "/")
+    {
+        return Err("Use a server address without a path, credentials or query string".into());
+    }
+    Ok(url.to_string().trim_end_matches('/').to_owned())
 }
 
 fn config() -> WebSocketConfig {
     WebSocketConfig::default()
-        .max_message_size(Some(16 * 1024))
-        .max_frame_size(Some(16 * 1024))
+        .max_message_size(Some(MAX_WORLD_BYTES))
+        .max_frame_size(Some(MAX_WORLD_BYTES))
 }
 
 fn client(
@@ -239,9 +239,16 @@ fn client(
     outgoing: Receiver<ClientMessage>,
     events: &SyncSender<Event>,
     stop: Arc<AtomicBool>,
+    world: World,
+    password: &str,
 ) -> Result<(), String> {
     let name = clean(name, 12);
     let name = if name.is_empty() { "Wanderer" } else { &name };
+    let password = if matches!(mode, Mode::HostCloud { .. } | Mode::JoinCloud { .. }) {
+        password
+    } else {
+        ""
+    };
     let (url, label, invite) = match mode {
         Mode::HostLan(port) => {
             let listener = TcpListener::bind(("0.0.0.0", port))
@@ -253,7 +260,8 @@ fn client(
                     "LAN discovery port {DISCOVERY_PORT} is busy. Close the other local host: {e}"
                 )
             })?;
-            serve(listener, discovery, stop.clone(), name.to_owned()).map_err(|e| e.to_string())?;
+            serve_world(listener, discovery, stop.clone(), name.to_owned(), world)
+                .map_err(|e| e.to_string())?;
             let invite = format!("{}:{port}", lan_ip());
             (
                 url_for(&format!("127.0.0.1:{port}"), "LOCAL", name, false)?,
@@ -293,7 +301,7 @@ fn client(
             )
         }
     };
-    let mut socket = open_socket(&url, &stop)?;
+    let mut socket = open_socket_authorized(&url, &stop, password)?;
     match socket.get_mut() {
         MaybeTlsStream::Plain(s) => s.set_read_timeout(Some(Duration::from_millis(10))),
         MaybeTlsStream::NativeTls(s) => s
@@ -305,6 +313,8 @@ fn client(
     events
         .try_send(Event::Room { label, invite })
         .map_err(|e| e.to_string())?;
+    let mut received_world = false;
+    let mut welcomed = false;
     let mut heartbeat = Instant::now();
     let mut last_received = Instant::now();
     while !stop.load(Ordering::Relaxed) {
@@ -325,8 +335,35 @@ fn client(
             Ok(Message::Text(text)) => {
                 last_received = Instant::now();
                 if text != "pong" {
-                    let msg = serde_json::from_str(&text)
+                    let msg: ServerMessage = serde_json::from_str(&text)
                         .map_err(|_| "Server protocol mismatch".to_owned())?;
+                    match &msg {
+                        ServerMessage::World { world } => {
+                            if received_world || welcomed {
+                                return Err("Server sent an unexpected map update".into());
+                            }
+                            world
+                                .validate()
+                                .map_err(|error| format!("Invalid server maps: {error}"))?;
+                            socket
+                                .send(Message::text(
+                                    serde_json::to_string(&ClientMessage::WorldReady {
+                                        revision: world.revision.clone(),
+                                    })
+                                    .unwrap(),
+                                ))
+                                .map_err(|e| e.to_string())?;
+                            received_world = true;
+                        }
+                        ServerMessage::Welcome { players, .. } => {
+                            if welcomed || players.len() > 16 {
+                                return Err("Invalid room welcome".into());
+                            }
+                            welcomed = true;
+                        }
+                        _ if !welcomed => return Err("Room activity arrived before joining".into()),
+                        _ => {}
+                    }
                     events
                         .try_send(Event::Message(msg))
                         .map_err(|_| "Network queue full. Please reconnect.".to_owned())?;
@@ -353,10 +390,20 @@ fn client(
     Ok(())
 }
 
+#[cfg(test)]
 fn open_socket(
     url: &Url,
     stop: &AtomicBool,
 ) -> Result<WebSocket<MaybeTlsStream<TcpStream>>, String> {
+    open_socket_authorized(url, stop, "")
+}
+
+fn open_socket_authorized(
+    url: &Url,
+    stop: &AtomicBool,
+    password: &str,
+) -> Result<WebSocket<MaybeTlsStream<TcpStream>>, String> {
+    use tungstenite::client::IntoClientRequest;
     // Retry only before the WebSocket request: retrying a room creation could duplicate it.
     let mut stream = open_transport(url, stop);
     for _ in 0..2 {
@@ -366,19 +413,35 @@ fn open_socket(
         thread::sleep(Duration::from_millis(250));
         stream = open_transport(url, stop);
     }
-    let (socket, _) =
-        tungstenite::client::client_with_config(url.as_str(), stream?, Some(config())).map_err(
-            |e| {
-                let detail = e.to_string();
-                if detail.contains("404") {
-                    "Room not found, or everyone has left.".into()
-                } else if detail.contains("409") {
-                    "Room is full or the code is taken. Try again.".into()
-                } else {
-                    format!("WebSocket connection failed: {detail}")
-                }
-            },
-        )?;
+    let mut request = url
+        .as_str()
+        .into_client_request()
+        .map_err(|_| "Invalid server address")?;
+    if !password.is_empty() {
+        request.headers_mut().insert(
+            "Authorization",
+            yapshire_shared::protocol::authorization(password)
+                .parse()
+                .map_err(|_| "Invalid server password")?,
+        );
+    }
+    let (socket, _) = tungstenite::client::client_with_config(request, stream?, Some(config()))
+        .map_err(|e| {
+            let detail = e.to_string();
+            if detail.contains("401") {
+                "Server password is missing or incorrect.".into()
+            } else if detail.contains("426") {
+                "Update Yapshire to join this server's maps.".into()
+            } else if detail.contains("403") {
+                "Room creation is disabled. Join the server's existing town.".into()
+            } else if detail.contains("404") {
+                "Room not found, or everyone has left.".into()
+            } else if detail.contains("409") {
+                "Room is full or the code is taken. Try again.".into()
+            } else {
+                format!("WebSocket connection failed: {detail}")
+            }
+        })?;
     Ok(socket)
 }
 
@@ -500,33 +563,30 @@ pub fn lan_ip() -> String {
         .unwrap_or_else(|_| "127.0.0.1".into())
 }
 
-struct Peer {
-    player: Player,
-    send: SyncSender<ServerMessage>,
-}
-type Peers = Arc<Mutex<HashMap<u32, Peer>>>;
-
-fn broadcast(peers: &HashMap<u32, Peer>, msg: ServerMessage, except: Option<u32>) {
-    for (&id, peer) in peers {
-        if Some(id) != except {
-            let _ = peer.send.try_send(msg.clone());
-        }
-    }
-}
-
+#[cfg(test)]
 pub fn serve(
     listener: TcpListener,
     discovery: UdpSocket,
     stop: Arc<AtomicBool>,
     owner: String,
 ) -> io::Result<()> {
-    listener.set_nonblocking(true)?;
+    serve_world(listener, discovery, stop, owner, World::bundled())
+}
+
+fn serve_world(
+    listener: TcpListener,
+    discovery: UdpSocket,
+    stop: Arc<AtomicBool>,
+    owner: String,
+    world: World,
+) -> io::Result<()> {
     discovery.set_nonblocking(true)?;
     let port = listener.local_addr()?.port();
     let instance = rand::random::<u64>();
+    let server =
+        yapshire_server::Server::new(yapshire_server::Config::lan(owner.clone()), world, "")?;
+    server.clone().spawn(listener, stop.clone())?;
     thread::spawn(move || {
-        let peers: Peers = Arc::default();
-        let pending = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         while !stop.load(Ordering::Relaxed) {
             let mut buffer = [0; 64];
             for _ in 0..16 {
@@ -537,7 +597,7 @@ pub fn serve(
                     let room = LanAnnouncement {
                         id: instance,
                         name: owner.clone(),
-                        players: peers.lock().unwrap().len(),
+                        players: server.player_count("LOCAL"),
                         port,
                     };
                     if let Ok(bytes) = serde_json::to_vec(&room) {
@@ -545,196 +605,9 @@ pub fn serve(
                     }
                 }
             }
-            match listener.accept() {
-                Ok((stream, _)) => {
-                    if pending.load(Ordering::Relaxed) >= 16 {
-                        continue;
-                    }
-                    pending.fetch_add(1, Ordering::Relaxed);
-                    let (peers, stop, pending) = (peers.clone(), stop.clone(), pending.clone());
-                    thread::spawn(move || {
-                        let _ = serve_peer(stream, peers, stop);
-                        pending.fetch_sub(1, Ordering::Relaxed);
-                    });
-                }
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    thread::sleep(Duration::from_millis(10))
-                }
-                Err(_) => break,
-            }
+            thread::sleep(Duration::from_millis(10));
         }
     });
-    Ok(())
-}
-
-fn serve_peer(
-    stream: TcpStream,
-    peers: Peers,
-    stop: Arc<AtomicBool>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    stream.set_read_timeout(Some(Duration::from_secs(3)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
-    stream.set_nodelay(true)?;
-    let mut name = "Wanderer".to_owned();
-    let mut socket = tungstenite::accept_hdr_with_config(
-        stream,
-        |req: &tungstenite::handshake::server::Request, response| {
-            if req.uri().path() != "/room/LOCAL" {
-                return Err(tungstenite::http::Response::builder()
-                    .status(404)
-                    .body(Some("Unknown room".into()))
-                    .unwrap());
-            }
-            if let Some(query) = req.uri().query() {
-                if let Some((_, value)) =
-                    url::form_urlencoded::parse(query.as_bytes()).find(|(k, _)| k == "name")
-                {
-                    name = clean(&value, 12);
-                    if name.is_empty() {
-                        name = "Wanderer".into();
-                    }
-                }
-            }
-            Ok(response)
-        },
-        Some(config()),
-    )
-    .map_err(|e| e.to_string())?;
-    socket
-        .get_mut()
-        .set_read_timeout(Some(Duration::from_millis(10)))?;
-    let (tx, rx) = mpsc::sync_channel(128);
-    let id;
-    {
-        let mut peers = peers.lock().unwrap();
-        if peers.len() >= 16 {
-            socket.close(None)?;
-            return Ok(());
-        }
-        id = loop {
-            let id = rand::random();
-            if !peers.contains_key(&id) {
-                break id;
-            }
-        };
-        let player = Player {
-            id,
-            name,
-            x: 244.0 + peers.len() as f32 * 48.0,
-            y: 0.0,
-            moving: false,
-            facing: false,
-            indoors: false,
-            fishing: false,
-        };
-        broadcast(
-            &peers,
-            ServerMessage::Joined {
-                player: player.clone(),
-            },
-            None,
-        );
-        peers.insert(
-            id,
-            Peer {
-                player,
-                send: tx.clone(),
-            },
-        );
-        tx.try_send(ServerMessage::Welcome {
-            you: id,
-            players: peers.values().map(|p| p.player.clone()).collect(),
-        })?;
-    }
-    let result = relay(&mut socket, &peers, id, &rx, &stop);
-    {
-        let mut peers = peers.lock().unwrap();
-        peers.remove(&id);
-        broadcast(&peers, ServerMessage::Left { id }, None);
-    }
-    let _ = socket.close(None);
-    result
-}
-
-fn relay(
-    socket: &mut WebSocket<TcpStream>,
-    peers: &Peers,
-    id: u32,
-    rx: &Receiver<ServerMessage>,
-    stop: &AtomicBool,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mut last_chat = Instant::now() - Duration::from_secs(1);
-    let mut last_seen = Instant::now();
-    let mut rate = (Instant::now(), 0);
-    while !stop.load(Ordering::Relaxed) {
-        for msg in rx.try_iter() {
-            socket.send(Message::text(serde_json::to_string(&msg)?))?;
-        }
-        let raw = match socket.read() {
-            Ok(Message::Text(text)) => text,
-            Ok(Message::Close(_)) => break,
-            Ok(_) => continue,
-            Err(tungstenite::Error::Io(e))
-                if matches!(
-                    e.kind(),
-                    io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
-                ) =>
-            {
-                if last_seen.elapsed() > Duration::from_secs(45) {
-                    break;
-                }
-                continue;
-            }
-            Err(e) => return Err(e.into()),
-        };
-        last_seen = Instant::now();
-        if rate.0.elapsed() >= Duration::from_secs(1) {
-            rate = (Instant::now(), 0);
-        }
-        rate.1 += 1;
-        if rate.1 > 80 || raw.len() > 2048 {
-            break;
-        }
-        if raw == "ping" {
-            socket.send(Message::text("pong"))?;
-            continue;
-        }
-        let message: ClientMessage = serde_json::from_str(&raw)?;
-        let mut peers = peers.lock().unwrap();
-        match message {
-            ClientMessage::Move {
-                x,
-                y,
-                moving,
-                facing,
-                indoors,
-                fishing,
-            } => {
-                if !x.is_finite() || !y.is_finite() {
-                    break;
-                }
-                let Some(peer) = peers.get_mut(&id) else {
-                    break;
-                };
-                // ponytail: client-driven, bounded positions; add authoritative physics for competitive play.
-                peer.player.x = x.clamp(12.0, 1428.0);
-                peer.player.y = y.clamp(0.0, 96.0);
-                peer.player.moving = moving;
-                peer.player.facing = facing;
-                peer.player.indoors = indoors;
-                peer.player.fishing = fishing && !indoors;
-                let player = peer.player.clone();
-                broadcast(&peers, ServerMessage::Moved { player }, Some(id));
-            }
-            ClientMessage::Chat { text } => {
-                let text = clean(&text, 80);
-                if !text.is_empty() && last_chat.elapsed() >= Duration::from_millis(300) {
-                    last_chat = Instant::now();
-                    broadcast(&peers, ServerMessage::Chat { id, text }, None);
-                }
-            }
-        }
-    }
     Ok(())
 }
 
@@ -899,6 +772,19 @@ mod tests {
             if let MaybeTlsStream::Plain(s) = ws.get_mut() {
                 s.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
             }
+            let world: ServerMessage =
+                serde_json::from_str(ws.read().unwrap().to_text().unwrap()).unwrap();
+            let ServerMessage::World { world } = world else {
+                panic!("Expected map before welcome")
+            };
+            world.validate().unwrap();
+            ws.send(Message::text(
+                serde_json::to_string(&ClientMessage::WorldReady {
+                    revision: world.revision,
+                })
+                .unwrap(),
+            ))
+            .unwrap();
             ws
         };
         let read = |ws: &mut WebSocket<MaybeTlsStream<TcpStream>>| -> ServerMessage {

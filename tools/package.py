@@ -1,5 +1,6 @@
 """Bundle a native release with its assets and notices; no external packaging tools."""
 import argparse
+import json
 from pathlib import Path
 import plistlib
 import shutil
@@ -15,13 +16,14 @@ TARGETS = {
 }
 
 
-def package(root, target):
+def package(root, target, server=False):
     root = Path(root)
     platform = TARGETS[target]
     version = tomllib.loads((root / "Cargo.toml").read_text())["package"]["version"]
-    name = f"yapshire-{version}-{platform}"
-    windows, mac = "windows" in platform, "macos" in platform
-    binary = root / "target" / target / "release" / ("yapshire.exe" if windows else "yapshire")
+    product = "yapshire-server" if server else "yapshire"
+    name = f"{product}-{version}-{platform}"
+    windows, mac = "windows" in platform, "macos" in platform and not server
+    binary = root / "target" / target / "release" / (product + (".exe" if windows else ""))
     if not binary.is_file() or not binary.stat().st_size:
         raise ValueError(f"Build {target} before packaging")
     stage = root / "dist" / name
@@ -32,17 +34,22 @@ def package(root, target):
     executable_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(binary, executable_dir / binary.name)
     (executable_dir / binary.name).chmod(0o755)
-    shutil.copytree(root / "assets", executable_dir / "assets")
+    if server:
+        shutil.copytree(root / "assets/maps", stage / "maps")
+        (stage / "server.json").write_text(json.dumps({"name": "My Yapshire town", "room_code": "MAIN0001", "maps_dir": "maps"}, indent=2) + "\n")
+    else:
+        shutil.copytree(root / "assets", executable_dir / "assets")
     for file in ["README.md", "README.zh-CN.md", "LICENSE.md", "CHANGELOG.md"]:
         shutil.copy2(root / file, stage / file)
     if (root / "docs").is_dir():
         shutil.copytree(root / "docs", stage / "docs")
-    for required in ["assets/people.png", "assets/town.png", "assets/fonts/fusion-pixel.ttf",
+    required_assets = ["maps/town.tmj", "maps/tackle-shop.tmj", "maps/harbor.tsj", "maps/harbor.png"] if server else ["assets/people.png", "assets/town.png", "assets/fonts/fusion-pixel.ttf",
                      "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
                      "assets/maps/harbor.tsj", "assets/maps/harbor.png",
                      "assets/fishing/items.png", "assets/fishing/frame.png",
                      "assets/fishing/slot.png", "assets/fishing/water.png",
-                     "assets/ui/editor-icons.png"]:
+                     "assets/ui/editor-icons.png"]
+    for required in required_assets:
         if not (executable_dir / required).is_file():
             raise ValueError(f"Missing bundled asset: {required}")
     if mac:
@@ -67,4 +74,6 @@ def package(root, target):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", required=True, choices=TARGETS)
-    print(package(Path(__file__).resolve().parent.parent, parser.parse_args().target))
+    parser.add_argument("--server", action="store_true", help="Package the standalone console server")
+    args = parser.parse_args()
+    print(package(Path(__file__).resolve().parent.parent, args.target, args.server))

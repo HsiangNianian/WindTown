@@ -1,0 +1,19 @@
+[package]
+name = "yapshire-server"
+version = "0.4.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+description = "Headless Yapshire multiplayer server"
+publish = false
+
+[dependencies]
+yapshire-shared = { path = "../yapshire-shared" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "sync", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rand = "0.9"
+subtle = "2.6"
+
+[dev-dependencies]
+tungstenite = "0.28"
