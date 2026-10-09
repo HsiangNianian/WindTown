@@ -336,6 +336,17 @@ fn standalone_cli_initializes_and_checks_the_same_editor_map_files() {
     let config_path = folder.join("server.json");
     let config = Config::load(&config_path).unwrap();
     assert_eq!(config.world().unwrap(), World::bundled());
+    // Windows users may already have CRLF copies from previous downloads.
+    let metadata = folder.join("maps/harbor.tsj");
+    let crlf = std::fs::read_to_string(&metadata)
+        .unwrap()
+        .replace("\r\n", "\n")
+        .replace('\n', "\r\n");
+    std::fs::write(&metadata, &crlf).unwrap();
+    assert_eq!(config.world().unwrap(), World::bundled());
+    std::fs::write(&metadata, b"{}\n").unwrap();
+    assert!(config.world().is_err());
+    std::fs::write(&metadata, crlf).unwrap();
     let town_file = folder.join("maps/town.tmj");
     let mut town = config.world().unwrap().town;
     town.layers[4].data[500] = 0x8000_005d;

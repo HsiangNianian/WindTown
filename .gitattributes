@@ -1,0 +1,2 @@
+# Keep embedded map data and release resources identical on every platform.
+* text=auto eol=lf

@@ -29,9 +29,19 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn lf_text(bytes: &[u8]) -> Vec<u8> {
+    bytes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, &byte)| {
+            (!(byte == b'\r' && bytes.get(index + 1) == Some(&b'\n'))).then_some(byte)
+        })
+        .collect()
+}
+
 pub fn tileset_revision() -> String {
     let mut hash = Sha256::new();
-    hash.update(TILESET);
+    hash.update(lf_text(TILESET));
     hash.update(TEXTURE);
     format!("harbor:{:x}", hash.finalize())
 }
@@ -39,11 +49,18 @@ pub fn tileset_revision() -> String {
 /// Map layouts can change, but every player must render the same tile palette.
 pub fn validate_tileset(folder: &Path) -> io::Result<()> {
     for (name, expected) in [("harbor.tsj", TILESET), ("harbor.png", TEXTURE)] {
+        let text = name == "harbor.tsj";
+        let limit = expected.len() * if text { 2 } else { 1 };
         let mut bytes = Vec::new();
         std::fs::File::open(folder.join(name))?
-            .take(expected.len() as u64 + 1)
+            .take(limit as u64 + 1)
             .read_to_end(&mut bytes)?;
-        if bytes != expected {
+        let matches = if text {
+            lf_text(&bytes) == lf_text(expected)
+        } else {
+            bytes == expected
+        };
+        if bytes.len() > limit || !matches {
             return Err(invalid(
                 "Custom tilesets are not supported in multiplayer; restore the bundled harbor.tsj and harbor.png",
             ));
@@ -121,6 +138,16 @@ impl World {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_world_has_the_same_protocol_fingerprint_on_every_platform() {
+        // Protocol 2 compatibility fixture: Windows must match Linux and macOS.
+        assert_eq!(
+            World::bundled().revision,
+            "ebcc3ffd127d6ae041cba46ba638d1e2519436705b05288b61b8c569943c2246"
+        );
+    }
+
     #[test]
     fn edited_tiled_maps_round_trip_and_tampering_is_rejected() {
         let mut original = World::bundled();
