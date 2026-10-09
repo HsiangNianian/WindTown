@@ -92,5 +92,13 @@ jobs:
           DIGEST: ${{ steps.published.outputs.digest }}
         run: |
           docker buildx imagetools inspect "$IMAGE@$DIGEST"
-          python tools/check_container.py "$IMAGE@$DIGEST" --platform linux/amd64
-          python tools/check_container.py "$IMAGE@$DIGEST" --platform linux/arm64
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --raw > published-index.json
+          # The classic Docker image store cannot hold two architectures under
+          # the same index digest. Pull each platform's immutable manifest.
+          for architecture in amd64 arm64; do
+            manifest=$(jq -er --arg architecture "$architecture" '
+              .manifests[] | select(.platform.os == "linux" and
+                .platform.architecture == $architecture) | .digest
+            ' published-index.json)
+            python tools/check_container.py "$IMAGE@$manifest" --platform "linux/$architecture"
+          done
