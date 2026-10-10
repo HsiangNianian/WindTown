@@ -118,9 +118,9 @@ and fishing instead of overwriting the file; an on-screen message reports load o
 write failures. Keep using the same nickname to resume progress.
 
 Progress is local to each computer. Coins and catches are not traded or synchronized
-between players. Movement packets synchronize the shop area and fishing pose;
-both the LAN relay and Worker accept older packets with these optional flags absent.
-Update a self-hosted Worker together with the client to show the new area and poses.
+between players. Movement packets carry the stable map ID and fishing pose;
+the server derives indoor/outdoor state from the map definition. Current source
+uses protocol 3, so update the client and server together.
 
 ## Settings and language
 
@@ -145,10 +145,10 @@ Yapshire v0.5.0 includes **04 MAP EDITOR** on the main menu. Press **4** or
 **F2** when no text field is selected. This is an offline editing screen; return
 to the main menu from a room before opening it.
 
-Choose **Town** or **Shop**, select one of the five layers (listed front to back),
-and pick a tile from the three-page Harbor palette. Each map keeps its own draft
+Use **Next map**, select a layer (listed front to back, with page arrows),
+and pick a tile from the pack's paginated palette. Each map keeps its own draft
 and up to 100 undo steps while switching between them. A drag is one undo step.
-The tool strip uses original 16px pixel icons, with B/E/I/F shortcut badges and
+The tool strip uses original 16px pixel icons, with B/E/I/F/P shortcut badges and
 hover descriptions. The active tool's name stays visible beside the strip;
 unavailable undo/redo and zoom controls are dimmed. Eye icons toggle layer visibility.
 
@@ -166,35 +166,24 @@ unavailable undo/redo and zoom controls are dimmed. Eye icons toggle layer visib
 | Arrow keys / middle mouse drag | Pan the canvas |
 | Mouse wheel over the canvas | Pan horizontally |
 | G / Grid | Toggle the grid |
-| Guides | Toggle fixed gameplay anchors |
+| Guides | Preview map-defined objects |
+| P / Object stamp | Place a complete prefab on the selected tile layer |
+| Next map / layer arrows | Browse the manifest and all layers |
 | Layer eye icon | Show or hide a layer (saved in the map) |
 | Reload | Read the current map from disk; confirm before discarding a draft |
 | Original | Restore the bundled layout as an undoable draft; save to keep it |
 | Done / Escape / window close | Leave; unsaved drafts offer save, discard or cancel |
 
-Gold guides mark the existing ground at Tiled y = 208, shop door, indoor exit,
-counter, casting area and pier end. Artwork edits do **not** change collision,
-map size, interactions, NPC positions or the fixed street background illustration.
-Hidden layers cannot be painted until shown again. The editor displays still
-tile previews; the game's water animation continues to use the tileset metadata.
+Gold guides preview map-defined spawn points, doors, shops and fishing regions.
+The manifest lists editable maps and tilesets. Collision comes from tile-layer
+properties and solid objects; gameplay regions can be moved in Tiled. The editor
+paints tiles, connects terrain, places whole object stamps, and preserves object
+and image layers. See [Content packs v1](CONTENT_PACKS.md) / [中文规范](CONTENT_PACKS.zh-CN.md).
 
-Custom maps are stored under the platform's normal Yapshire data directory in a
-`maps/` subfolder (on macOS, `~/Library/Application Support/Yapshire/maps`).
-`YAPSHIRE_MAP_DIR` overrides that folder independently of fishing saves. **Map
-files** opens it. Saving also copies `harbor.tsj` and `harbor.png` there if absent
-so the `.tmj` files can be opened in Tiled; the game continues to use its bundled
-tileset artwork. Save files preserve Tiled metadata and flip flags. Writes use
-a temporary file and keep the previous saved bytes as `.tmj.bak`. A file changed
-by another editor must be reloaded before saving; failures retain the draft.
-
-Valid local layouts load automatically on startup. Invalid local files fall back
-to the bundled layout and show a message in the editor. An explicit repair/save
-preserves the invalid file as a backup. To remove an override completely, close
-the game and move its `.tmj` out of the saved map folder. Bundled assets are never
-overwritten by the editor. LAN hosts share their saved maps automatically.
-Dedicated servers distribute their configured maps; see [self-hosting](SELF_HOSTING.md)
-or the [Chinese guide](SELF_HOSTING.zh-CN.md). Joining never overwrites local editor
-files, and leaving or disconnecting restores the player's own maps.
+Local saves preserve Tiled metadata and flips, use atomic replacement and keep
+previous bytes as `.tmj.bak`. External edits must be reloaded before saving.
+Loading an old harbor map migrates it in memory; only an explicit save writes the
+new layout. Joining never overwrites editor files, and leaving restores local maps.
 
 For native acceptance, use fresh isolated map and settings folders with a debug
 build. This keeps the check in English regardless of your saved language:
@@ -215,50 +204,23 @@ Screenshots go to `artifacts/editor-*.png`; input is injected only into this app
 
 ## Tilemaps
 
-The street floor, quay, animated water, timber pier, tackle-shop exterior and
-interior render through `bevy_ecs_tilemap`. The coastal area shares the town's
-sky and hills. The older street's decorative buildings and trees remain a
-background illustration; characters, signs above NPCs and fishing rods are sprites.
+The official content pack is `assets/packs/yapshire/pack.json`. Its terrain,
+water, buildings, objects and background assets are separate resources with
+stable IDs. It uses the same loader as community packs. Open its `maps/*.tmj`
+files in Tiled or use the in-game workshop. Read [Content packs v1](CONTENT_PACKS.md)
+for the schema, authoring workflow, interactions, collision, migration and limits.
+The old `assets/maps/harbor.*` and two maps remain read-only migration fixtures.
 
-Open these files directly in [Tiled](https://www.mapeditor.org/):
-
-| File | Contents |
-| --- | --- |
-| `assets/maps/town.tmj` | 90 × 17 cells: water, shore and pilings, terrain, buildings, props |
-| `assets/maps/tackle-shop.tmj` | 30 × 17 cells: backdrop, walls, floor, furniture, counter |
-| `assets/maps/harbor.tsj` | Shared 16 × 16 tiles and water animations |
-| `assets/maps/harbor.png` | The tileset image |
-
-Bundled maps load from the same runtime `assets/` folder as the artwork, with
-valid locally saved editor maps taking precedence. Save in the in-game editor
-to apply immediately, or use **Reload** after changing its saved file in Tiled.
-Changes to bundled maps appear after restart when no local override exists;
-rebuilding Rust is unnecessary. Keep
-the existing five layers in order, their original dimensions and offsets, and
-use uncompressed JSON tile arrays. Empty cells, hidden layers and Tiled tile
-flips are supported. Invalid sizes, tile IDs and animation ranges are rejected
-at startup instead of producing a broken tilemap. This is a small loader for
-these finite orthogonal maps, not a general importer for every Tiled feature.
-
-The current demo has one flat walking surface at world **y = 0**, corresponding
-to **y = 208** in Tiled (the top of tile row 13). Editing artwork does not change
-collision or interaction positions: the outdoor shop door is x = 965, indoor
-exit x = 64, counter x = 270, and fishing begins at x = 1304. The pier ends at
-x = 1360; players stop 12 pixels before its edge and cast into the water beyond.
-Preserve these anchors when editing. New platforms, slopes or moved interactions need matching
-gameplay changes. Protocol 2 shares these visual layouts through LAN hosts and
-dedicated servers. The existing public Worker uses the bundled original map.
-
-To regenerate the original harbor tiles and both default layouts:
+Regenerate the official art, pack and both default layouts with:
 
 ```sh
 uv run --with Pillow tools/draw_maps.py
 ```
 
-This **overwrites** the map layouts, so keep any hand-edited maps first. The
-generator checks tile bounds and a continuous floor. Rust tests additionally
-check map loading, interaction alignment and invalid tile data. Release packaging
-requires all four map assets and the four `assets/fishing/` images on every platform.
+This overwrites shipped layouts; preserve hand-edited copies first. The generator
+checks old-to-new resource identities. Shared Rust tests exercise palette remaps,
+third-party maps, portals, PNG fingerprints and invalid content. Packaging follows
+`pack.json` and includes all referenced maps, tilesets and images on every platform.
 
 ## Networking
 
@@ -283,9 +245,10 @@ creator leaving while others remain, and close when empty. Chat history and
 positions are not saved between sessions. The old `yapshire-multiplayer` address
 is a service-binding gateway to this server, not a separate room backend.
 
-All deployments use the protocol-2 world/acknowledgement exchange before
-admitting players. Use v0.5.2+ clients; pre-v0.5 clients must upgrade. The client
-can still connect to third-party deployments of the original Worker protocol.
+Current source builds use protocol **3** and world format **2**. They require a
+validated world and matching installed content before acknowledging entry. Update
+the game and server together; v0.6.0 releases/public deployments still use protocol
+2 until upgraded. There is no legacy no-world handshake fallback in this build.
 Positions are transmitted
 at up to 20 Hz only when changed; remote players interpolate between updates.
 Connections have timeouts and heartbeats. Each room allows 16 players, names are

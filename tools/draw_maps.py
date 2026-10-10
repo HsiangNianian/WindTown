@@ -364,3 +364,6 @@ for name, width in [("town.tmj", 90), ("tackle-shop.tmj", 30)]:
     # A continuous walking surface matches the current side-scroller physics.
     assert all(data["layers"][2]["data"][13 * width + x] for x in range(1, 85 if width == 90 else width - 1))
 print(f"Wrote two Tiled maps and {len(tiles)} tiles ({len(animations)} water animations).")
+
+from build_content import build
+build(globals())

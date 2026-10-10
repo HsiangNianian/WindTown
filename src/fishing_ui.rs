@@ -1,6 +1,6 @@
 use crate::{
     Session,
-    fishing::{self, Action, FISH, Fishing, Panel, Stage},
+    fishing::{Action, FISH, Fishing, Panel, Stage},
     game::{Actor, Art},
     i18n::{I18n, Message, tr},
     ui::{self, Menu, Page},
@@ -601,6 +601,7 @@ pub fn render(
 }
 
 pub fn refresh(
+    maps: Res<crate::maps::Maps>,
     i18n: Res<I18n>,
     time: Res<Time>,
     fishing: Res<Fishing>,
@@ -611,22 +612,26 @@ pub fn refresh(
     mut visuals: Query<(&Visual, &mut Node), (Without<Fill>, Without<Prompt>)>,
     mut prompts: Query<&mut Node, (With<Prompt>, Without<Fill>, Without<Visual>)>,
 ) {
-    let x = actors
+    let interaction = actors
         .iter()
         .find(|a| Some(a.player.id) == session.you)
-        .map_or(0.0, |a| a.position.x);
+        .and_then(|a| {
+            maps.by_id(&a.player.map)
+                .and_then(|m| m.interaction(a.position.x, a.position.y))
+        });
     let prompt = if fishing.modal() {
         Message::default()
-    } else if fishing.indoors && (x - fishing::SHOP_EXIT).abs() < 32.0 {
-        tr("fishing.prompt.leave")
-    } else if fishing.indoors && (x - fishing::COUNTER).abs() < 58.0 {
-        tr("fishing.prompt.shop")
-    } else if !fishing.indoors && (x - fishing::SHOP_DOOR).abs() < 28.0 {
-        tr("fishing.prompt.enter")
-    } else if !fishing.indoors && x >= fishing::PIER_START {
-        tr("fishing.prompt.cast")
     } else {
-        Message::default()
+        match interaction.map(|o| o.kind.as_str()) {
+            Some("portal") => tr(if fishing.indoors {
+                "fishing.prompt.leave"
+            } else {
+                "fishing.prompt.enter"
+            }),
+            Some("shop") => tr("fishing.prompt.shop"),
+            Some("fishing") => tr("fishing.prompt.cast"),
+            _ => Message::default(),
+        }
     };
     for mut node in &mut prompts {
         node.display = if prompt.is_empty() {

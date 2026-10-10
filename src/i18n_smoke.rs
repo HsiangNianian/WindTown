@@ -240,6 +240,7 @@ pub(crate) fn drive(
                 &mut commands,
                 &art,
                 crate::network::Player {
+                    map: "yapshire:town".into(),
                     id: 1,
                     name: menu.name.clone(),
                     x: 260.0,

@@ -207,21 +207,6 @@ for x in range(0, 1440, 4):
         rect((x, y, x, 176), random.choice(["#567b57", "#96a06a", "#bdba81"]))
 save(town, "town.png")
 
-tiles, d = canvas(64, 16)
-for tile in range(4):
-    x = tile*16
-    d.rectangle((x, 0, x+15, 15), fill="#aa9677" if tile<2 else "#7e795f")
-    for _ in range(17):
-        xx, yy = x+random.randrange(16), random.randrange(16)
-        d.rectangle((xx, yy, min(xx+2, x+15), yy), fill=random.choice(["#91876a", "#b4a080", "#9e8d6c"]))
-    if tile<2:
-        d.rectangle((x, 0, x+15, 2), fill="#dbca9b")
-        d.rectangle((x, 3, x+15, 3), fill="#8f8b67")
-        d.line((x+15, 5, x+15, 14), fill="#968567")
-    else:
-        d.rectangle((x, 14, x+15, 15), fill="#6f7058")
-save(tiles, "tiles.png")
-
 sheet, d = canvas(24*6, 32*4)
 for row, (shirt, bright, hair, hat) in enumerate([
     ("#ba8550", "#ebba6e", "#544843", "#e3b567"),
@@ -277,4 +262,4 @@ save(shadow, "shadow.png")
 assert sheet.size == (144, 128)
 assert sheet.crop((0, 0, 24, 32)).tobytes() != sheet.crop((48, 0, 72, 32)).tobytes()
 assert town.size == (1440, 192)
-print("Wrote 8 original pixel-art assets; dimensions and walk frames verified.")
+print("Wrote 6 original pixel-art assets; dimensions and walk frames verified.")

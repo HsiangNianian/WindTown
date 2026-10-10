@@ -41,7 +41,7 @@ pub struct Actor {
     velocity_y: f32,
     phase: f32,
     send_time: f32,
-    last_sent: (Vec2, bool, bool, bool, bool),
+    last_sent: (Vec2, bool, bool, String, bool),
 }
 
 impl Actor {
@@ -195,15 +195,6 @@ pub fn setup(
             Cloud { x, y, speed },
         ));
     }
-    commands.spawn((
-        Sprite {
-            image: assets.load("town.png"),
-            rect: Some(Rect::new(0.0, 0.0, 928.0, 192.0)),
-            ..default()
-        },
-        Outside,
-        Transform::from_xyz(464.0, 80.0, -20.0),
-    ));
     for i in 0..22 {
         let origin = Vec2::new(30.0 + i as f32 * 64.0, 12.0 + (i * 17 % 62) as f32);
         commands.spawn((
@@ -241,7 +232,7 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
                 velocity_y: 0.0,
                 phase: 0.0,
                 send_time: 0.0,
-                last_sent: (position, false, false, false, false),
+                last_sent: (position, false, false, String::new(), false),
             },
         ))
         .with_children(|parent| {
@@ -261,20 +252,105 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
     crate::coast::rod(commands, entity, id, art);
 }
 
-fn step(position: &mut Vec2, velocity_y: &mut f32, direction: f32, run: bool, jump: bool, dt: f32) {
-    position.x = (position.x + direction * if run { 105.0 } else { 62.0 } * dt)
-        .clamp(12.0, crate::fishing::PIER_END - 12.0);
-    if jump && position.y == 0.0 {
-        *velocity_y = 174.0;
+fn step(
+    position: &mut Vec2,
+    velocity_y: &mut f32,
+    direction: f32,
+    run: bool,
+    jump: bool,
+    dt: f32,
+    map: &crate::maps::Map,
+    content: &yapshire_shared::content::Content,
+    path: &str,
+) {
+    const HALF: f32 = 6.0;
+    const HEIGHT: f32 = 26.0;
+    let old = *position;
+    let mut surfaces = Vec::new();
+    let min = old - Vec2::new(24.0, 32.0 + (-*velocity_y).max(0.0) * dt);
+    let max = old + Vec2::new(24.0, 48.0);
+    for row in (((map.origin_y() - max.y) / 16.0).floor() as i32).max(0)
+        ..=((map.origin_y() - min.y) / 16.0).floor() as i32
+    {
+        for col in ((min.x / 16.0).floor() as i32).max(0)..=(max.x / 16.0).floor() as i32 {
+            let collision = map.collision(content, path, col, row);
+            if collision != "none" {
+                let top = map.origin_y() - row as f32 * 16.0;
+                surfaces.push((
+                    Rect::new(col as f32 * 16.0, top - 16.0, (col + 1) as f32 * 16.0, top),
+                    collision == "solid",
+                ));
+            }
+        }
+    }
+    for o in map.objects().filter(|o| o.kind == "solid") {
+        surfaces.push((
+            Rect::new(
+                o.x,
+                map.origin_y() - o.y - o.height,
+                o.x + o.width,
+                map.origin_y() - o.y,
+            ),
+            true,
+        ));
+    }
+    let overlaps_x =
+        |x: f32, rect: Rect| x + HALF > rect.min.x + 0.01 && x - HALF < rect.max.x - 0.01;
+    let grounded = surfaces
+        .iter()
+        .any(|(r, _)| overlaps_x(old.x, *r) && (old.y - r.max.y).abs() < 0.1);
+    if jump && grounded {
+        *velocity_y = 180.0;
+    }
+    position.x = (old.x + direction * if run { 105.0 } else { 62.0 } * dt)
+        .clamp(12.0, map.width as f32 * 16.0 - 12.0);
+    for (r, solid) in &surfaces {
+        if *solid
+            && old.y < r.max.y - 0.01
+            && old.y + HEIGHT > r.min.y + 0.01
+            && overlaps_x(position.x, *r)
+        {
+            position.x = if direction > 0.0 {
+                r.min.x - HALF
+            } else if direction < 0.0 {
+                r.max.x + HALF
+            } else {
+                old.x
+            };
+        }
     }
     *velocity_y -= 460.0 * dt;
-    position.y = (position.y + *velocity_y * dt).max(0.0);
-    if position.y == 0.0 {
-        *velocity_y = 0.0;
+    position.y = old.y + *velocity_y * dt;
+    for (r, solid) in &surfaces {
+        if !overlaps_x(position.x, *r) {
+            continue;
+        }
+        if *velocity_y <= 0.0 && old.y >= r.max.y - 0.01 && position.y <= r.max.y {
+            position.y = r.max.y;
+            *velocity_y = 0.0;
+        } else if *solid
+            && *velocity_y > 0.0
+            && old.y + HEIGHT <= r.min.y + 0.01
+            && position.y + HEIGHT >= r.min.y
+        {
+            position.y = r.min.y - HEIGHT;
+            *velocity_y = 0.0;
+        }
+    }
+    if position.y < -64.0 {
+        if let Some(spawn) = map
+            .objects()
+            .find(|o| o.kind == "spawn")
+            .and_then(|o| map.spawn(&o.name))
+        {
+            *position = Vec2::from_array(spawn);
+            *velocity_y = 0.0;
+        }
     }
 }
 
 pub fn walk(
+    maps: Res<crate::maps::Maps>,
     settings: Res<crate::settings::Settings>,
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -287,17 +363,22 @@ pub fn walk(
 ) {
     let dt = time.delta_secs().min(0.05);
     for mut actor in &mut actors {
+        let Some(map) = maps.by_id(&actor.player.map) else {
+            continue;
+        };
+        let path = &maps
+            .world
+            .content
+            .manifest
+            .maps
+            .iter()
+            .find(|m| m.id == actor.player.map)
+            .unwrap()
+            .path;
         if Some(actor.player.id) != session.you {
             let target = Vec2::new(
-                actor.player.x.clamp(
-                    12.0,
-                    if actor.player.indoors {
-                        444.0
-                    } else {
-                        crate::fishing::PIER_END - 12.0
-                    },
-                ),
-                actor.player.y.clamp(0.0, 96.0),
+                actor.player.x.clamp(12.0, map.width as f32 * 16.0 - 12.0),
+                actor.player.y.clamp(-64.0, map.origin_y() + 96.0),
             );
             actor.position = actor.position.lerp(target, 1.0 - (-18.0 * dt).exp());
             continue;
@@ -322,10 +403,17 @@ pub fn walk(
             velocity_y,
             ..
         } = &mut *actor;
-        step(position, velocity_y, direction, run, jump, dt);
-        if fishing.indoors {
-            actor.position.x = actor.position.x.clamp(38.0, 444.0);
-        }
+        step(
+            position,
+            velocity_y,
+            direction,
+            run,
+            jump,
+            dt,
+            map,
+            &maps.world.content,
+            path,
+        );
         actor.player.x = actor.position.x;
         actor.player.y = actor.position.y;
         actor.player.moving = direction != 0.0;
@@ -337,12 +425,13 @@ pub fn walk(
             actor.position,
             actor.player.moving,
             actor.player.facing,
-            actor.player.indoors,
+            actor.player.map.clone(),
             actor.player.fishing,
         );
         if actor.send_time >= 0.05 && now != actor.last_sent {
             if let Some(link) = &session.link {
                 let sent = link.send.try_send(ClientMessage::Move {
+                    map: actor.player.map.clone(),
                     x: actor.player.x,
                     y: actor.player.y,
                     moving: actor.player.moving,
@@ -396,24 +485,33 @@ pub fn animate(
 }
 
 pub fn follow_camera(
+    maps: Res<crate::maps::Maps>,
     time: Res<Time>,
     session: Res<Session>,
     actors: Query<&Actor>,
     mut camera: Single<&mut Transform, (With<WorldCamera>, Without<Backdrop>)>,
     mut backdrops: Query<(&Backdrop, &mut Transform), Without<WorldCamera>>,
-    mut was_indoors: Local<bool>,
+    mut previous_map: Local<String>,
 ) {
     let mine = actors.iter().find(|a| Some(a.player.id) == session.you);
-    let indoors = mine.is_some_and(|a| a.player.indoors);
-    let target = if indoors {
-        240.0
+    let map_id = mine.map_or(maps.world.entry().0, |a| a.player.map.as_str());
+    let map = maps
+        .by_id(map_id)
+        .unwrap_or(maps.get(crate::maps::MapKind(0)));
+    let width = map.width as f32 * 16.0;
+    let target = if width <= WIDTH {
+        width / 2.0
     } else {
-        mine.map_or(260.0, |a| a.position.x).clamp(240.0, 1200.0)
+        mine.map_or(260.0, |a| a.position.x)
+            .clamp(WIDTH / 2.0, width - WIDTH / 2.0)
     };
-    if *was_indoors != indoors {
+    if *previous_map != map_id {
         camera.translation.x = target;
-        *was_indoors = indoors;
+        *previous_map = map_id.to_owned();
     }
+    camera.translation.y = mine
+        .map_or(76.0, |a| (a.position.y + 76.0).max(76.0))
+        .min((map.origin_y() - HEIGHT / 2.0).max(76.0));
     let x = camera.translation.x
         + (target - camera.translation.x) * (1.0 - (-6.0 * time.delta_secs()).exp());
     camera.translation.x = if (target - x).abs() < 1.0 {
@@ -489,7 +587,7 @@ pub fn bubbles(
             continue;
         }
         if let Some(actor) = actors.iter().find(|a| a.player.id == bubble.id) {
-            *visibility = if actor.player.indoors == fishing.indoors {
+            *visibility = if actor.player.map == fishing.map {
                 Visibility::Inherited
             } else {
                 Visibility::Hidden
@@ -630,23 +728,154 @@ mod tests {
     }
     #[test]
     fn walking_jumping_and_bounds() {
+        let world = yapshire_shared::World::bundled();
+        let map = &world.maps["yapshire:town"];
         let mut pos = Vec2::new(244.0, 0.0);
         let mut vy = 0.0;
         for _ in 0..60 {
-            step(&mut pos, &mut vy, 1.0, false, false, 1.0 / 60.0);
+            step(
+                &mut pos,
+                &mut vy,
+                1.0,
+                false,
+                false,
+                1.0 / 60.0,
+                map,
+                &world.content,
+                "maps/town.tmj",
+            );
         }
         assert!((pos.x - 306.0).abs() < 0.1);
-        step(&mut pos, &mut vy, 0.0, false, true, 1.0 / 60.0);
+        step(
+            &mut pos,
+            &mut vy,
+            0.0,
+            false,
+            true,
+            1.0 / 60.0,
+            map,
+            &world.content,
+            "maps/town.tmj",
+        );
         assert!(pos.y > 0.0);
         for _ in 0..180 {
-            step(&mut pos, &mut vy, -1.0, true, false, 1.0 / 60.0);
+            step(
+                &mut pos,
+                &mut vy,
+                -1.0,
+                true,
+                false,
+                1.0 / 60.0,
+                map,
+                &world.content,
+                "maps/town.tmj",
+            );
         }
         assert_eq!(pos, Vec2::new(12.0, 0.0));
         assert_eq!(vy, 0.0);
         for _ in 0..1000 {
-            step(&mut pos, &mut vy, 1.0, true, false, 1.0 / 60.0);
+            step(
+                &mut pos,
+                &mut vy,
+                1.0,
+                true,
+                false,
+                1.0 / 60.0,
+                map,
+                &world.content,
+                "maps/town.tmj",
+            );
         }
-        assert_eq!(pos.x, crate::fishing::PIER_END - 12.0);
+        assert!(
+            pos.x < 1360.0,
+            "falling off the pier returns to the map spawn"
+        );
+    }
+    #[test]
+    fn collision_tiles_drive_platforms_walls_and_ceilings() {
+        let world = yapshire_shared::World::bundled();
+        let mut map = world.maps["yapshire:tackle_shop"].clone();
+        let platform = world.content.gid("yapshire:deck/0_0").unwrap();
+        let solid = world.content.gid("yapshire:stone/2_0").unwrap();
+        for x in 14..=16 {
+            map.layers[2].data[11 * 30 + x] = platform;
+        }
+        let mut position = Vec2::new(244.0, 0.0);
+        let mut velocity = 0.0;
+        for frame in 0..90 {
+            step(
+                &mut position,
+                &mut velocity,
+                0.0,
+                false,
+                frame == 0,
+                1.0 / 60.0,
+                &map,
+                &world.content,
+                "maps/tackle-shop.tmj",
+            );
+        }
+        assert_eq!(
+            position.y, 32.0,
+            "jump through a platform, then land on its top"
+        );
+        for row in 9..13 {
+            map.layers[2].data[row * 30 + 17] = solid;
+        }
+        for _ in 0..120 {
+            step(
+                &mut position,
+                &mut velocity,
+                1.0,
+                true,
+                false,
+                1.0 / 60.0,
+                &map,
+                &world.content,
+                "maps/tackle-shop.tmj",
+            );
+        }
+        assert_eq!(position.x, 266.0, "a wall blocks the player's body");
+        for x in 14..=16 {
+            map.layers[2].data[11 * 30 + x] = 0;
+            map.layers[2].data[9 * 30 + x] = solid;
+        }
+        position = Vec2::new(244.0, 0.0);
+        let mut peak = 0.0_f32;
+        for frame in 0..90 {
+            step(
+                &mut position,
+                &mut velocity,
+                0.0,
+                false,
+                frame == 0,
+                1.0 / 60.0,
+                &map,
+                &world.content,
+                "maps/tackle-shop.tmj",
+            );
+            peak = peak.max(position.y);
+        }
+        assert_eq!(peak, 22.0, "the head stops at the ceiling");
+        assert_eq!(position.y, 0.0);
+        position = Vec2::new(80.0, 40.0);
+        velocity = -1000.0;
+        step(
+            &mut position,
+            &mut velocity,
+            0.0,
+            false,
+            false,
+            0.05,
+            &map,
+            &world.content,
+            "maps/tackle-shop.tmj",
+        );
+        assert_eq!(
+            position.y, 0.0,
+            "a fast fall must not pass through the floor"
+        );
+        assert_eq!(velocity, 0.0);
     }
     #[test]
     fn bubble_is_readable_and_bounded() {

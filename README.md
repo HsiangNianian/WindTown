@@ -183,7 +183,7 @@ updated client and server.
 The street floor, coast, pier and tackle shop use 16 × 16 tilemaps, including
 animated water. Edit the shipped `.tmj` maps in Tiled and restart the game to see
 your layout changes. See the [map editing guide](docs/DEVELOPMENT.md#tilemaps)
-for the demo's fixed collision and interaction limits.
+for the supported authoring workflow.
 
 ## Make the town your own
 
@@ -199,9 +199,15 @@ launch. **Map files** opens the saved `.tmj` files and their Tiled-compatible
 tileset. Original bundled maps stay intact; **Original** restores one as an
 undoable draft. Leaving with unsaved edits asks whether to save or discard them.
 LAN hosting shares your saved maps; dedicated servers distribute their configured
-maps. Joining never overwrites your local editor files. Gold guides show the fixed walking
-surface and interaction points; editing artwork does not move them.
+maps. Joining never overwrites your local editor files. Gold guides preview the map's interaction objects.
 See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
+
+**In the unreleased source build:** [Content packs v1](docs/CONTENT_PACKS.md)
+splits terrain, water, buildings, objects and backgrounds into reusable resources.
+It adds stable asset IDs, terrain connections, complete object stamps, variable map
+lists and sizes, and map-defined collision/portals/shops/fishing regions. Custom
+packs use the same pipeline as official content. This build uses protocol 3;
+run a matching server (v0.6.0/public servers remain on protocol 2 until upgraded).
 
 ## Settings and language
 

@@ -5,6 +5,26 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [Unreleased]
+
+### Content packs and map authoring
+
+- Load official and community packs through one versioned manifest. Split the
+  harbor atlas into terrain, water, buildings and objects, with 375 stable tile
+  IDs, ten whole-object patterns and a normal background image layer.
+- Preserve resource identity across Tiled GID changes and atlas repacking using
+  a saved stable-ID palette. Import old harbor maps without rewriting originals;
+  explicit editor saves keep backups and detect external-file conflicts.
+- Load variable map lists/sizes and map-defined spawns, portals, tackle shops,
+  fishing areas, physical tiles, one-way platforms and solid rectangles.
+- Browse all maps/layers in the workshop, paint connected terrain and place whole
+  object stamps. Include a complete Tiled edge terrain and bilingual authoring docs.
+- Verify installed pack definitions and image hashes before entering a room;
+  synchronize map IDs in movement and reject unknown destinations. This is
+  **protocol 3 / world format 2**: upgrade client and server together. Existing
+  v0.6.0 releases and public deployments continue using protocol 2 until upgraded.
+- Package all manifest resources for native/server archives and container builds.
+
 ## [v0.6.0] - 2026-10-10
 
 ### Clubs and Rooms
