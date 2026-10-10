@@ -51,19 +51,19 @@ make a place to spend a little time together.
 download a game archive, extract it, and launch. Rust, Node.js, and a Cloudflare
 account are not needed to play.
 
-| Platform | Download v0.7.0 | After extracting |
+| Platform | Download v0.7.1 | After extracting |
 | --- | --- | --- |
-| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.0/yapshire-0.7.0-windows-x64.zip) | Open `yapshire.exe` |
-| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.0/yapshire-0.7.0-linux-x64.tar.gz) | Run `./yapshire` |
-| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.0/yapshire-0.7.0-macos-arm64.tar.gz) | Open `Yapshire.app` |
-| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.0/yapshire-0.7.0-macos-x64.tar.gz) | Open `Yapshire.app` |
+| Windows · x64 | [Download ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-windows-x64.zip) | Open `yapshire.exe` |
+| Linux · x64 | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-linux-x64.tar.gz) | Run `./yapshire` |
+| macOS · Apple Silicon | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-macos-arm64.tar.gz) | Open `Yapshire.app` |
+| macOS · Intel | [Download tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-macos-x64.tar.gz) | Open `Yapshire.app` |
 
 Extract the **whole archive**. On Windows and Linux, keep `assets/` beside the
 executable; on macOS, the assets are inside the app. The bundled pixel font supports
 English and Simplified Chinese. Every release also includes `SHA256SUMS` and
 `CHANGELOG.md`, with matching Release Notes.
 
-Use matching **v0.7.0** clients and servers for LAN and online rooms.
+Use matching **v0.7.1** clients and servers for LAN and online rooms.
 The official online service uses the same versioned content pack. See [self-hosting](docs/SELF_HOSTING.md) for compatibility and setup.
 
 <details>
@@ -104,7 +104,7 @@ The official server is **Yapshire Town (Yapshire 小镇)** at
 players. Its `NIANNIAN` room is always listed, and players can create temporary
 rooms. The previous official addresses remain available for existing clients;
 updated clients migrate saved official addresses to the new default. Use
-**v0.7.0** clients; earlier versions use a different map protocol.
+**v0.7.1** clients; earlier versions use a different map protocol.
 
 While the online lobby is open, Clubs refresh independently every eight seconds
 and show room names, player counts/capacity and measured latency. Room latency
@@ -141,7 +141,7 @@ window is required. Join `ws://127.0.0.1:4761` and choose **MAIN0001**.
 
 ```sh
 docker run -d --name yapshire --restart unless-stopped \
-  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.7.0
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.7.1
 ```
 
 The Linux AMD64/ARM64 image and four native server downloads use the same
@@ -152,7 +152,7 @@ Compose, configuration and public access.
 
 ## An afternoon of fishing
 
-**Included in the v0.7.0 downloads above.**
+**Included in the v0.7.1 downloads above.**
 
 Walk east past the street sign to **Tide & Tackle**. Press **E** at the door to
 enter, walk up to Mara's counter, and press **E** again to shop. A new nickname
@@ -201,12 +201,12 @@ LAN hosting shares your saved maps; dedicated servers distribute their configure
 maps. Joining never overwrites your local editor files. Gold guides preview the map's interaction objects.
 See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
 
-**New in v0.7.0:** [Content packs v1](docs/CONTENT_PACKS.md)
+**New in v0.7.1:** [Content packs v1](docs/CONTENT_PACKS.md)
 splits terrain, water, buildings, objects and backgrounds into reusable resources.
 It adds stable asset IDs, terrain connections, complete object stamps, variable map
 lists and sizes, and map-defined collision/portals/shops/fishing regions. Custom
 packs use the same pipeline as official content. This build uses protocol 3;
-run a matching v0.7.0 server. Earlier releases use protocol 2 and cannot join these rooms.
+run a matching v0.7.1 server. Earlier releases use protocol 2 and cannot join these rooms.
 
 This release also includes an [autumn lakeside art update](docs/ART_DIRECTION.md):
 misty mountains, conifers, gold birches, cedar buildings and a dark forest/brass UI.

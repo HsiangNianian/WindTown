@@ -245,7 +245,7 @@ creator leaving while others remain, and close when empty. Chat history and
 positions are not saved between sessions. The old `yapshire-multiplayer` address
 is a service-binding gateway to this server, not a separate room backend.
 
-v0.7.0 uses protocol **3** and world format **2**. Clients require a
+v0.7.1 uses protocol **3** and world format **2**. Clients require a
 validated world and matching installed content before acknowledging entry. Update
 the game and server together; older releases use incompatible protocol 2. There is no legacy no-world handshake fallback in this build.
 Positions are transmitted
@@ -487,18 +487,18 @@ root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.7.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.7.1 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock crates/*/Cargo.toml server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: release v0.7.0"
+git commit -m "chore: release v0.7.1"
 # Once the release commit is on main:
-git tag -a v0.7.0 -m "Release v0.7.0"
-git push --atomic origin main v0.7.0
+git tag -a v0.7.1 -m "Release v0.7.1"
+git push --atomic origin main v0.7.1
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.7.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.7.1"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 

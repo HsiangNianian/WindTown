@@ -3,16 +3,16 @@
 [简体中文](SELF_HOSTING.zh-CN.md) · [README](../README.md)
 
 `yapshire-server` runs without a game window, GPU, Node.js or Cloudflare account.
-Use it on a home computer, VPS, or Docker host. In v0.7.0 and later clients,
+Use it on a home computer, VPS, or Docker host. In v0.7.1 and later clients,
 players choose **Online lobby → Add Club**, enter its address and optionally give
 it a personal alias. Each saved Club automatically lists its rooms, occupancy and
 measured latency. Select a Club to create a room there; editing or removing the
 subscription does not rename or stop the actual server. Clients and servers must
-use matching v0.7.0 builds (protocol 3); older clients need to update first.
+use matching v0.7.1 builds (protocol 3); older clients need to update first.
 
 The official **Yapshire Town (Yapshire 小镇)** uses
 `wss://yap-server.mmstudio.games`; `wss://yap.meaninglessmeaning.studio` reaches
-the same town. Enter either address in a v0.7.0 client.
+the same town. Enter either address in a v0.7.1 client.
 
 ## Start with the standalone download
 
@@ -53,7 +53,7 @@ docker run -d --name yapshire --restart unless-stopped \
   -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:latest
 ```
 
-Use a version tag such as `:v0.7.0` to pin a release. The repository also includes
+Use a version tag such as `:v0.7.1` to pin a release. The repository also includes
 [`compose.yaml`](../compose.yaml): `docker compose up -d` starts the default town.
 The image runs as UID/GID **10001**, includes an HTTP health check, and reads
 configuration from `/data`. It never needs to write to your maps.
@@ -73,7 +73,7 @@ docker run -d --name yapshire-custom --restart unless-stopped \
   -p 4761:4761 --read-only --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --mount "type=bind,src=$PWD/my-town,dst=/data,readonly" \
-  ghcr.io/hsiangnianian/yapshire-server:v0.7.0
+  ghcr.io/hsiangnianian/yapshire-server:v0.7.1
 ```
 
 Ensure the directory and files are readable by UID 10001. In Compose, enable the
@@ -83,7 +83,7 @@ health check; for a custom internal port, override the health check as well.
 
 ## Use maps and content packs
 
-The following describes **v0.7.0** (protocol 3). Client and server must use
+The following describes **v0.7.1** (protocol 3). Client and server must use
 matching builds. Earlier releases use protocol 2 and cannot join these rooms.
 
 1. Run `./yapshire-server --init ./my-town`. This creates `server.json` and a

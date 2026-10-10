@@ -2,7 +2,7 @@
 
 [简体中文](CONTENT_PACKS.zh-CN.md)
 
-**Available in v0.7.0.** This format uses network protocol **3**, world
+**Available in v0.7.1.** This format uses network protocol **3**, world
 format **2**, and pack format **1**. Run matching game/server builds. Earlier releases
 use protocol 2 and cannot join protocol 3 rooms.
 

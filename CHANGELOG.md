@@ -7,7 +7,11 @@ and commits it after all platform archives have been uploaded and verified.
 
 ## [Unreleased]
 
-## [v0.7.0] - 2026-10-10
+## [v0.7.1] - 2026-10-10
+
+This is the first published 0.7 release. The v0.7.0 tag failed the optimized test
+build; this release fixes the test-only fishing constant and includes the full
+art and content-pack update below.
 
 ### Autumn lakeside art
 

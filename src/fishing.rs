@@ -14,7 +14,7 @@ pub const SHOP_DOOR: f32 = 965.0;
 pub const SHOP_EXIT: f32 = 64.0;
 #[cfg(debug_assertions)]
 pub const COUNTER: f32 = 270.0;
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, test))]
 pub const PIER_START: f32 = 1304.0;
 #[cfg(test)]
 pub const PIER_END: f32 = 1360.0;

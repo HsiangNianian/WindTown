@@ -25,7 +25,7 @@ official addresses without changing custom server choices.
 The previous `wss://yapshire-multiplayer.opensource-941.workers.dev` address uses
 a [service binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/http/)
 to reach the same server. It has no separate lobby or game implementation.
-Use v0.7.0 clients with protocol 3 and content pack 1.1.0. Older clients use
+Use v0.7.1 clients with protocol 3 and content pack 1.1.0. Older clients use
 protocol 2 and must upgrade before joining the updated official server.
 
 The Worker routes every game request to the same Durable Object. The `default`
