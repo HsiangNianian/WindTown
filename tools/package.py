@@ -54,6 +54,7 @@ def package(root, target, server=False):
         required_assets.append(str(Path(pack_root) / Path(source).parent / tileset["image"]))
     if not server:
         required_assets += ["assets/people.png", "assets/fonts/fusion-pixel.ttf", "assets/fishing/items.png",
+                            "assets/hills.png", "assets/sky.png", "assets/cloud.png", "assets/shadow.png",
                             "assets/fishing/frame.png", "assets/fishing/slot.png", "assets/fishing/water.png",
                             "assets/ui/editor-icons.png"]
     for required in required_assets:

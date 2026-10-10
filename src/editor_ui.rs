@@ -37,8 +37,8 @@ pub(crate) enum Readout {
 #[derive(Component)]
 pub(crate) struct Cursor;
 
-const PAPER: Color = Color::srgb_u8(229, 220, 189);
-const SEA: Color = Color::srgb_u8(35, 56, 57);
+const PAPER: Color = ui::SURFACE;
+const SEA: Color = Color::srgb_u8(22, 34, 38);
 const GOLD: Color = Color::srgb_u8(235, 189, 96);
 
 fn box_at(
@@ -143,7 +143,7 @@ fn button(
         let badge = text_at(commands, id, art, key, w - 17.0, h - 17.0, 12.0, INK);
         commands
             .entity(badge)
-            .insert((BackgroundColor(CREAM), FocusPolicy::Pass));
+            .insert((BackgroundColor(ui::PANEL), FocusPolicy::Pass));
     }
     id
 }
@@ -213,7 +213,7 @@ pub(crate) fn render(
                 height: percent(100),
                 ..default()
             },
-            BackgroundColor(CREAM),
+            BackgroundColor(ui::PANEL.with_alpha(1.0)),
         ))
         .id();
     box_at(&mut commands, root, 0.0, 0.0, 1440.0, 74.0, SEA);
@@ -326,12 +326,13 @@ pub(crate) fn render(
     let rows = (CANVAS_SIZE.y / size).ceil() as u32;
     if !maps.info(editor.kind).indoors {
         commands.spawn((
-            ImageNode::new(assets.load("sky.png")),
+            ImageNode::new(assets.load("hills.png")),
             Node {
                 position_type: PositionType::Absolute,
-                width: px(CANVAS_SIZE.x),
-                height: px(272.0 * editor.zoom as f32),
-                top: px(-(editor.offset.y as f32) * size),
+                width: px(map.width as f32 * size),
+                height: px(540.0 * editor.zoom as f32),
+                left: px(-(editor.offset.x as f32) * size),
+                top: px(-186.0 * editor.zoom as f32 - editor.offset.y as f32 * size),
                 ..default()
             },
             ChildOf(canvas),
@@ -753,7 +754,7 @@ pub(crate) fn render(
             1020.0,
             684.0,
             14.0,
-            GREEN,
+            ui::GOLD,
         );
         let size = (104.0 / prefab.width as f32).min(50.0 / prefab.height as f32);
         for (i, id) in prefab.tiles.iter().enumerate() {
@@ -794,7 +795,7 @@ pub(crate) fn render(
             810.0,
             Color::srgba_u8(24, 42, 40, 210),
         );
-        let panel = box_at(&mut commands, shade, 410.0, 248.0, 620.0, 314.0, CREAM);
+        let panel = box_at(&mut commands, shade, 410.0, 248.0, 620.0, 314.0, ui::PANEL);
         text_at(
             &mut commands,
             panel,
@@ -849,7 +850,7 @@ pub(crate) fn render(
             [388.0, 160.0, 204.0, 42.0],
             Action::Cancel,
         );
-        let status = text_at(&mut commands, panel, &art, "", 28.0, 222.0, 16.0, GREEN);
+        let status = text_at(&mut commands, panel, &art, "", 28.0, 222.0, 16.0, GOLD);
         commands.entity(status).insert((
             Readout::DialogStatus,
             Node {
@@ -986,19 +987,15 @@ pub(crate) fn refresh(
             hovered = Some((*action, face.rect));
         }
         *color = BackgroundColor(if !available {
-            Color::srgb_u8(231, 226, 203)
+            Color::srgb_u8(29, 42, 40)
         } else if *interaction != Interaction::None {
-            Color::srgb_u8(194, 199, 146)
+            Color::srgb_u8(79, 96, 76)
         } else if selected {
-            Color::srgb_u8(173, 192, 149)
+            Color::srgb_u8(78, 96, 78)
         } else {
             PAPER
         });
-        *border = BorderColor::all(if selected {
-            GREEN
-        } else {
-            Color::srgb_u8(201, 193, 161)
-        });
+        *border = BorderColor::all(if selected { GREEN } else { ui::EDGE });
     }
     for (icon, mut image) in &mut images {
         let tint = Color::WHITE.with_alpha(if enabled(icon.0) { 1.0 } else { 0.35 });

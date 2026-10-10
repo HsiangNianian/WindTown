@@ -16,6 +16,7 @@ class PackagingTests(unittest.TestCase):
             root = Path(tmp)
             (root / "Cargo.toml").write_text('[package]\nversion = "1.2.3"\n')
             for name in ["README.md", "README.zh-CN.md", "LICENSE.md", "CHANGELOG.md", "assets/people.png",
+                         "assets/hills.png", "assets/sky.png", "assets/cloud.png", "assets/shadow.png",
                          "assets/town.png", "assets/fonts/fusion-pixel.ttf", "assets/fonts/OFL.txt",
                          "assets/maps/town.tmj", "assets/maps/tackle-shop.tmj",
                          "assets/maps/harbor.tsj", "assets/maps/harbor.png",

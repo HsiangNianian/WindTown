@@ -16,9 +16,11 @@ use bevy::{
     text::FontSmoothing,
 };
 
-pub const WIDTH: f32 = 480.0;
-pub const HEIGHT: f32 = 270.0;
+pub const WIDTH: f32 = 720.0;
+pub const HEIGHT: f32 = 405.0;
 pub const WINDOW_SIZE: UVec2 = UVec2::new(1440, 810);
+const CAMERA_Y: f32 = HEIGHT / 2.0 - 64.0;
+const CHARACTER_SIZE: UVec2 = UVec2::new(20, 32);
 
 #[derive(Resource)]
 pub struct Art {
@@ -71,6 +73,14 @@ pub(crate) struct Backdrop {
     base: Vec2,
     parallax: f32,
 }
+impl Backdrop {
+    fn x(&self, camera: f32, width: f32) -> f32 {
+        let margin = ((width - WIDTH) / 2.0).max(0.0);
+        (self.base.x + (camera - WIDTH / 2.0) * self.parallax)
+            .clamp(camera - margin, camera + margin)
+            .round()
+    }
+}
 #[derive(Component)]
 pub(crate) struct Cloud {
     x: f32,
@@ -102,7 +112,7 @@ pub fn setup(
         font: assets.load("fonts/fusion-pixel.ttf"),
         people: assets.load("people.png"),
         atlas: layouts.add(TextureAtlasLayout::from_grid(
-            UVec2::new(24, 32),
+            CHARACTER_SIZE,
             6,
             4,
             None,
@@ -153,7 +163,7 @@ pub fn setup(
         RenderTarget::Image(canvas.clone().into()),
         Msaa::Off,
         WorldCamera,
-        Transform::from_xyz(260.0, 76.0, 0.0),
+        Transform::from_xyz(WIDTH / 2.0, CAMERA_Y, 0.0),
     ));
     commands.spawn((Sprite::from_image(canvas), RenderLayers::layer(1)));
     commands.spawn((
@@ -166,19 +176,23 @@ pub fn setup(
     commands.spawn((
         Sprite::from_image(assets.load("sky.png")),
         Outside,
-        Transform::from_xyz(260.0, 76.0, -50.0),
+        Transform::from_xyz(WIDTH / 2.0, CAMERA_Y, -50.0),
         Backdrop {
-            base: Vec2::new(260.0, 76.0),
+            base: Vec2::new(WIDTH / 2.0, CAMERA_Y),
             parallax: 1.0,
         },
     ));
     commands.spawn((
-        Sprite::from_image(assets.load("hills.png")),
+        Sprite {
+            image: assets.load("hills.png"),
+            custom_size: Some(Vec2::new(1620.0, 540.0)),
+            ..default()
+        },
         Outside,
-        Transform::from_xyz(720.0, 76.0, -40.0),
+        Transform::from_xyz(810.0, 124.0, -46.0),
         Backdrop {
-            base: Vec2::new(720.0, 76.0),
-            parallax: 0.68,
+            base: Vec2::new(810.0, 124.0),
+            parallax: 0.44,
         },
     ));
     for (x, y, speed) in [
@@ -196,9 +210,9 @@ pub fn setup(
         ));
     }
     for i in 0..22 {
-        let origin = Vec2::new(30.0 + i as f32 * 64.0, 12.0 + (i * 17 % 62) as f32);
+        let origin = Vec2::new(30.0 + i as f32 * 64.0, (i * 17 % 170) as f32);
         commands.spawn((
-            Sprite::from_color(Color::srgb_u8(246, 221, 155), Vec2::new(2.0, 1.0)),
+            Sprite::from_color(Color::srgb_u8(192, 165, 96), Vec2::new(2.0, 1.0)),
             Transform::from_xyz(origin.x, origin.y, 9.0),
             Mote {
                 origin,
@@ -242,10 +256,10 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
             ));
             parent.spawn((
                 Text2d::new(name),
-                font(art, 12.0),
-                TextColor(Color::srgb_u8(250, 235, 192)),
-                TextBackgroundColor(Color::srgba_u8(42, 66, 56, 220)),
-                Transform::from_xyz(0.0, 40.0, 0.5),
+                font(art, 9.0),
+                TextColor(crate::ui::CREAM),
+                TextBackgroundColor(Color::srgba_u8(26, 41, 38, 210)),
+                Transform::from_xyz(0.0, 38.0, 0.5),
             ));
         })
         .id();
@@ -476,11 +490,11 @@ pub fn animate(
         transform.translation.y = cloud.y;
     }
     for (mote, mut transform, mut sprite) in &mut motes {
-        transform.translation.x = (mote.origin.x + (t * 0.3 + mote.phase).sin() * 9.0).round();
-        transform.translation.y = (mote.origin.y + (t * 0.8 + mote.phase).sin() * 5.0).round();
+        transform.translation.x = (mote.origin.x + (t * 0.35 + mote.phase).sin() * 14.0).round();
+        transform.translation.y = (mote.origin.y - t * 3.0).rem_euclid(185.0).round();
         sprite
             .color
-            .set_alpha(0.25 + (t * 1.7 + mote.phase).sin().max(0.0) * 0.6);
+            .set_alpha(0.18 + (t * 0.8 + mote.phase).sin().max(0.0) * 0.4);
     }
 }
 
@@ -490,7 +504,7 @@ pub fn follow_camera(
     session: Res<Session>,
     actors: Query<&Actor>,
     mut camera: Single<&mut Transform, (With<WorldCamera>, Without<Backdrop>)>,
-    mut backdrops: Query<(&Backdrop, &mut Transform), Without<WorldCamera>>,
+    mut backdrops: Query<(&Backdrop, &Sprite, &mut Transform), Without<WorldCamera>>,
     mut previous_map: Local<String>,
 ) {
     let mine = actors.iter().find(|a| Some(a.player.id) == session.you);
@@ -502,7 +516,7 @@ pub fn follow_camera(
     let target = if width <= WIDTH {
         width / 2.0
     } else {
-        mine.map_or(260.0, |a| a.position.x)
+        mine.map_or(WIDTH / 2.0, |a| a.position.x)
             .clamp(WIDTH / 2.0, width - WIDTH / 2.0)
     };
     if *previous_map != map_id {
@@ -510,8 +524,8 @@ pub fn follow_camera(
         *previous_map = map_id.to_owned();
     }
     camera.translation.y = mine
-        .map_or(76.0, |a| (a.position.y + 76.0).max(76.0))
-        .min((map.origin_y() - HEIGHT / 2.0).max(76.0));
+        .map_or(CAMERA_Y, |a| (a.position.y + CAMERA_Y).max(CAMERA_Y))
+        .min((map.origin_y() - HEIGHT / 2.0).max(CAMERA_Y));
     let x = camera.translation.x
         + (target - camera.translation.x) * (1.0 - (-6.0 * time.delta_secs()).exp());
     camera.translation.x = if (target - x).abs() < 1.0 {
@@ -519,9 +533,9 @@ pub fn follow_camera(
     } else {
         x
     };
-    for (backdrop, mut transform) in &mut backdrops {
-        transform.translation.x =
-            (backdrop.base.x + (camera.translation.x - 260.0) * backdrop.parallax).round();
+    for (backdrop, sprite, mut transform) in &mut backdrops {
+        let width = sprite.custom_size.map_or(WIDTH, |size| size.x);
+        transform.translation.x = backdrop.x(camera.translation.x, width);
         transform.translation.y = backdrop.base.y;
     }
 }
@@ -548,11 +562,11 @@ fn bubble_text(text: &str) -> String {
 
 pub fn spawn_bubble(commands: &mut Commands, art: &Art, id: u32, position: Vec2, text: &str) {
     let text = bubble_text(text);
-    let height = text.lines().count() as f32 * 14.0 + 12.0;
+    let height = text.lines().count() as f32 * 11.0 + 10.0;
     commands
         .spawn((
-            Sprite::from_color(Color::srgb_u8(250, 238, 205), Vec2::new(150.0, height)),
-            Transform::from_xyz(position.x, position.y + 50.0 + height / 2.0, 20.0),
+            Sprite::from_color(crate::ui::PANEL, Vec2::new(112.0, height)),
+            Transform::from_xyz(position.x, position.y + 44.0 + height / 2.0, 20.0),
             Bubble {
                 id,
                 height,
@@ -562,13 +576,13 @@ pub fn spawn_bubble(commands: &mut Commands, art: &Art, id: u32, position: Vec2,
         .with_children(|p| {
             p.spawn((
                 Text2d::new(text),
-                font(art, 12.0),
-                TextColor(Color::srgb_u8(51, 71, 60)),
+                font(art, 9.0),
+                TextColor(crate::ui::CREAM),
                 TextLayout::new_with_justify(Justify::Center),
                 Transform::from_xyz(0.0, 1.0, 1.0),
             ));
             p.spawn((
-                Sprite::from_color(Color::srgb_u8(250, 238, 205), Vec2::new(5.0, 4.0)),
+                Sprite::from_color(crate::ui::PANEL, Vec2::new(4.0, 3.0)),
                 Transform::from_xyz(0.0, -height / 2.0 - 2.0, 0.0),
             ));
         });
@@ -593,7 +607,7 @@ pub fn bubbles(
                 Visibility::Hidden
             };
             transform.translation.x = actor.position.x.round();
-            transform.translation.y = actor.position.y.round() + 50.0 + bubble.height / 2.0;
+            transform.translation.y = actor.position.y.round() + 44.0 + bubble.height / 2.0;
         }
     }
 }
@@ -657,6 +671,22 @@ pub fn capture(
 mod tests {
     use super::*;
     #[test]
+    fn wide_maps_do_not_expose_panorama_edges() {
+        let backdrop = Backdrop {
+            base: Vec2::new(810.0, 124.0),
+            parallax: 0.44,
+        };
+        assert_eq!(backdrop.x(360.0, 1620.0), 810.0);
+        assert_eq!(backdrop.x(860.0, 1620.0), 1030.0);
+        for camera in [120.0, 260.0, 1200.0, 1920.0, 8000.0] {
+            let x = backdrop.x(camera, 1620.0);
+            assert!(x - 810.0 <= camera - WIDTH / 2.0);
+            assert!(x + 810.0 >= camera + WIDTH / 2.0);
+            assert_eq!(backdrop.x(camera, WIDTH), camera);
+        }
+    }
+
+    #[test]
     fn scene_and_ui_share_the_same_viewport_across_display_sizes() {
         let mut app = App::new();
         app.init_resource::<UiScale>()
@@ -672,11 +702,11 @@ mod tests {
             .id();
         for (width, height, dpi, size, position) in [
             (1440, 810, 1.0, (1440, 810), (0, 0)),
-            (2560, 1440, 1.0, (2400, 1350), (80, 45)),
-            (3440, 1440, 1.0, (2400, 1350), (520, 45)),
-            (1080, 2560, 1.0, (960, 540), (60, 1010)),
-            (3840, 2160, 2.0, (3840, 2160), (0, 0)),
-            (2160, 1215, 1.5, (1920, 1080), (120, 67)),
+            (2560, 1440, 1.0, (2160, 1215), (200, 112)),
+            (3440, 1440, 1.0, (2160, 1215), (640, 112)),
+            (1080, 2560, 1.0, (720, 405), (180, 1077)),
+            (3840, 2160, 2.0, (3600, 2025), (120, 67)),
+            (2160, 1215, 1.5, (2160, 1215), (0, 0)),
             (320, 180, 1.0, (320, 180), (0, 0)),
         ] {
             let mut w = app.world_mut().get_mut::<Window>(window).unwrap();

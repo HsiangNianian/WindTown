@@ -245,10 +245,9 @@ creator leaving while others remain, and close when empty. Chat history and
 positions are not saved between sessions. The old `yapshire-multiplayer` address
 is a service-binding gateway to this server, not a separate room backend.
 
-Current source builds use protocol **3** and world format **2**. They require a
+v0.7.0 uses protocol **3** and world format **2**. Clients require a
 validated world and matching installed content before acknowledging entry. Update
-the game and server together; v0.6.0 releases/public deployments still use protocol
-2 until upgraded. There is no legacy no-world handshake fallback in this build.
+the game and server together; older releases use incompatible protocol 2. There is no legacy no-world handshake fallback in this build.
 Positions are transmitted
 at up to 20 Hz only when changed; remote players interpolate between updates.
 Connections have timeouts and heartbeats. Each room allows 16 players, names are
@@ -411,32 +410,44 @@ YAPSHIRE_SMOKE=host-cloud YAPSHIRE_RECORD=artifacts/recording cargo run --locked
 YAPSHIRE_SMOKE=guest-cloud cargo run --locked
 ```
 
-The English and Chinese READMEs use the same captured gameplay, with localized
-captions outside the game viewport. The game interface remains English. Banner
-lettering is stored as SVG paths, so Chinese text needs no installed fonts.
+The English and Chinese READMEs are recorded separately from actual connected
+clients using their respective interface language. Banner lettering is stored as
+SVG paths, so Chinese text needs no installed fonts.
 
 - Bevy **0.18.1** and [bevy_ecs_tilemap **0.18.1**](https://github.com/StarArawn/bevy_ecs_tilemap).
-- A 480 × 270 world render texture, nearest-neighbor sampling, and integer pixel
+- A 720 × 405 world render texture, nearest-neighbor sampling, and integer pixel
   scaling; high-resolution UI still uses the bundled pixel font.
-- Original 16-pixel terrain tiles, four 24 × 32 characters with six animation
-  frames each, layered scenery, drifting clouds, and fireflies.
+- Original 16-pixel terrain tiles, four 20 × 32 characters with six animation
+  frames each, a layered autumn landscape, drifting clouds and falling leaves.
+- The illustrated lake panorama uses nearest-neighbor sampling through the same
+  world canvas. See [art direction and source ownership](ART_DIRECTION.md).
 - [Fusion Pixel Font](https://github.com/TakWolf/fusion-pixel-font), 12px monospaced
   Latin variant with CJK coverage, release 2026.09.25. Font and upstream licenses
   are in `assets/fonts/`.
 - WebSocket architecture follows Cloudflare's
   [Durable Object hibernation API](https://developers.cloudflare.com/durable-objects/examples/websocket-hibernation-server/).
 
-The checked-in PNGs are ready to run. To regenerate the original art:
+The checked-in PNGs are ready to run. To regenerate the editable foreground,
+official content pack and UI art (this replaces official pack layouts):
 
 ```sh
 uv run --with Pillow tools/draw_assets.py
+uv run --with Pillow tools/draw_maps.py
 uv run --with Pillow tools/draw_fishing.py
 uv run --with Pillow tools/draw_editor_icons.py
+uv run --with Pillow tools/draw_readme.py
 ```
 
-Native GPU gameplay is verified on Linux, with native editor and language UI
-checks also run on macOS. GitHub Actions builds and tests Windows, Linux, and both
-macOS architectures. GUI play on Windows and sessions between two separate
+The panorama `assets/hills.png` is a separately generated illustration and is
+preserved by these commands. `assets/maps/` contains frozen legacy migration
+fixtures; the pack generator never rewrites them. The official art pack is now
+version 1.1.0; peers need matching definitions and images. Tile IDs, walking routes
+and interactions are unchanged from pack 1.0.0; the decorative lighthouse now
+sits at the lake horizon.
+
+This release's native GPU gameplay, editor and language UI are verified on Linux.
+GitHub Actions builds and tests Windows, Linux, and both macOS architectures.
+GUI play on Windows/macOS and sessions between two separate
 physical LAN machines still need manual verification.
 
 ## Cross-platform CI
@@ -476,18 +487,18 @@ root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.6.0 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.7.0 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock crates/*/Cargo.toml server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: release v0.6.0"
+git commit -m "chore: release v0.7.0"
 # Once the release commit is on main:
-git tag -a v0.6.0 -m "Release v0.6.0"
-git push --atomic origin main v0.6.0
+git tag -a v0.7.0 -m "Release v0.7.0"
+git push --atomic origin main v0.7.0
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.6.0"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.7.0"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 

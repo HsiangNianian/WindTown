@@ -7,6 +7,24 @@ and commits it after all platform archives have been uploaded and verified.
 
 ## [Unreleased]
 
+## [v0.7.0] - 2026-10-10
+
+### Autumn lakeside art
+
+- Render the world at 720 × 405 with crisp 2x pixels in the fixed window. Redraw
+  slimmer 20 × 32 characters, resize nameplates and fishing rigs, and keep
+  the map collision grid and gameplay coordinates intact.
+- Reduce menu, HUD, satchel and fishing panel sizes; keep text readable in both
+  languages. Refresh every README banner, screenshot and native gameplay GIF.
+- Add an original illustrated mountain-and-lake panorama, cedar buildings,
+  conifers, golden birches, mossy paths and reflective blue water. Retain the
+  editable 16px tile grid, stable tile IDs and walking routes. Place the
+  lighthouse at the new lake horizon.
+- Restyle menus, Clubs, settings, the workshop and fishing panels with dark
+  timber/forest surfaces, warm ivory text and brass accents. Keep both languages.
+- Update the official art pack to 1.1.0. Preserve frozen legacy map fixtures and
+  the separately illustrated panorama when regenerating editable assets.
+
 ### Content packs and map authoring
 
 - Load official and community packs through one versioned manifest. Split the
@@ -21,8 +39,8 @@ and commits it after all platform archives have been uploaded and verified.
   object stamps. Include a complete Tiled edge terrain and bilingual authoring docs.
 - Verify installed pack definitions and image hashes before entering a room;
   synchronize map IDs in movement and reject unknown destinations. This is
-  **protocol 3 / world format 2**: upgrade client and server together. Existing
-  v0.6.0 releases and public deployments continue using protocol 2 until upgraded.
+  **protocol 3 / world format 2**: upgrade client and server together. Older
+  releases use protocol 2 and cannot join protocol 3 rooms.
 - Package all manifest resources for native/server archives and container builds.
 
 ## [v0.6.0] - 2026-10-10

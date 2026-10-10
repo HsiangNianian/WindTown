@@ -75,7 +75,7 @@ fn main() {
         .insert_resource(settings)
         .insert_resource(clubs)
         .insert_resource(i18n)
-        .insert_resource(ClearColor(Color::srgb_u8(35, 56, 57)))
+        .insert_resource(ClearColor(Color::srgb_u8(22, 34, 38)))
         .init_resource::<Session>()
         .insert_resource(menu)
         .init_resource::<ui::Chat>()
@@ -157,6 +157,10 @@ fn main() {
         .add_systems(Update, editor_smoke::drive.before(ui::buttons))
         .add_systems(Update, i18n_smoke::drive.before(settings::update))
         .add_systems(Update, smoke::record.after(ui::render));
+    #[cfg(debug_assertions)]
+    if std::env::var_os("YAPSHIRE_SMOKE").is_some() {
+        app.insert_resource(bevy::winit::WinitSettings::continuous());
+    }
     app.run();
 }
 

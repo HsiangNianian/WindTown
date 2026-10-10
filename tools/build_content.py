@@ -1,12 +1,13 @@
 """Export the authored pixel art as the official, editable content pack."""
 
 import json
+from copy import deepcopy
 from pathlib import Path
 from PIL import Image, ImageDraw
 
 
 def build(g):
-    root = g["OUT"].parent / "packs/yapshire"
+    root = g["ASSETS"] / "packs/yapshire"
     root.mkdir(parents=True, exist_ok=True)
     groups = {name: [] for name in ("terrain/ground", "terrain/water", "buildings/tackle", "objects/harbor")}
     names, prefabs = {}, {}
@@ -46,8 +47,8 @@ def build(g):
         terrain_ids.append(key)
         im = g["tiles"][g["stone"][2] - 1].copy()
         d = ImageDraw.Draw(im)
-        for bit, line, color in [(1, (0, 0, 15, 0), "#dbca9b"), (2, (15, 0, 15, 15), "#596e63"),
-                                 (4, (0, 15, 15, 15), "#596e63"), (8, (0, 0, 0, 15), "#a4a386")]:
+        for bit, line, color in [(1, (0, 0, 15, 0), "#b7ad8b"), (2, (15, 0, 15, 15), "#35494d"),
+                                 (4, (0, 15, 15, 15), "#35494d"), (8, (0, 0, 0, 15), "#829085")]:
             if not mask & bit:
                 d.line(line, fill=color, width=2)
         groups["terrain/ground"].append((key, im, "solid", None))
@@ -94,7 +95,7 @@ def build(g):
         firstgid += len(items)
 
     (root / "backgrounds").mkdir(exist_ok=True)
-    Image.open(g["OUT"].parent / "town.png").crop((0, 0, 928, 192)).save(root / "backgrounds/street.png")
+    Image.open(g["ASSETS"] / "town.png").crop((0, 0, 928, 192)).save(root / "backgrounds/street.png")
 
     def obj(oid, name, kind, x, y, width=0, height=0, **props):
         return dict(id=oid, name=name, type=kind, x=x, y=y, width=width, height=height,
@@ -108,7 +109,7 @@ def build(g):
         obj(2, "exit", "portal", 32, 176, 64, 32, target_map="yapshire:town", target_spawn="from_shop"),
         obj(3, "counter", "shop", 212, 176, 116, 32)]
     for name, objects in [("town", town_objects), ("tackle-shop", shop_objects)]:
-        data = json.loads((g["OUT"] / (name + ".tmj")).read_text())
+        data = deepcopy(g["maps"][name])
         data["tilesets"] = references
         data["properties"] = [prop("yapshire:palette", json.dumps(palette, sort_keys=True, separators=(",", ":")))]
         for layer in data["layers"]:
@@ -123,7 +124,7 @@ def build(g):
         data["nextlayerid"], data["nextobjectid"] = 8, len(objects) + 1
         write("maps/" + name + ".tmj", data)
 
-    manifest = dict(format=1, id="yapshire", version="1.0.0", tile_size=16,
+    manifest = dict(format=1, id="yapshire", version="1.1.0", tile_size=16,
         tilesets=[group + ".tsj" for group in groups], images=["backgrounds/street.png"],
         maps=[dict(id="yapshire:town", path="maps/town.tmj", title="Harbor town", indoors=False),
               dict(id="yapshire:tackle_shop", path="maps/tackle-shop.tmj", title="Tide & Tackle", indoors=True)],

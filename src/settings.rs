@@ -243,9 +243,9 @@ pub(crate) fn update(
         *background = BackgroundColor(if selected {
             GREEN
         } else if *interaction != Interaction::None {
-            Color::srgb_u8(194, 199, 146)
+            Color::srgb_u8(79, 96, 76)
         } else {
-            Color::srgb_u8(229, 220, 189)
+            ui::SURFACE
         });
         if *interaction != Interaction::Pressed
             || !(mouse.just_pressed(MouseButton::Left) || touches.any_just_pressed())
@@ -278,11 +278,7 @@ fn button(
             action,
             node,
             ChildOf(parent),
-            BackgroundColor(if selected {
-                GREEN
-            } else {
-                Color::srgb_u8(229, 220, 189)
-            }),
+            BackgroundColor(if selected { GREEN } else { ui::SURFACE }),
             BorderColor::all(if selected { INK } else { MUTED }),
         ))
         .id();
@@ -390,7 +386,7 @@ pub(crate) fn render(
                 border: UiRect::all(px(3)),
                 ..default()
             },
-            BackgroundColor(CREAM),
+            BackgroundColor(ui::PANEL),
             BorderColor::all(MUTED),
             ChildOf(root),
         ))
@@ -476,7 +472,7 @@ pub(crate) fn render(
         &art,
         settings.notice.clone(),
         16.0,
-        GREEN,
+        ui::GOLD,
     );
     button(
         &mut commands,

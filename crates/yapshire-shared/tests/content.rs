@@ -6,7 +6,7 @@ use yapshire_shared::{
 };
 
 #[test]
-fn official_pack_and_legacy_saves_resolve_to_the_same_art() {
+fn official_pack_and_legacy_saves_preserve_tile_identity() {
     let world = World::bundled();
     assert_eq!(world.content.sets.len(), 4);
     assert_eq!(
@@ -24,13 +24,38 @@ fn official_pack_and_legacy_saves_resolve_to_the_same_art() {
         serde_json::from_str(yapshire_shared::SHOP).unwrap(),
     )
     .unwrap();
-    for (id, map) in &world.maps {
-        for i in 0..5 {
-            assert_eq!(map.layers[i].data, migrated.maps[id].layers[i].data);
+    for (id, source) in [
+        ("yapshire:town", yapshire_shared::TOWN),
+        ("yapshire:tackle_shop", yapshire_shared::SHOP),
+    ] {
+        let legacy: Map = serde_json::from_str(source).unwrap();
+        let map = &migrated.maps[id];
+        let path = &world
+            .content
+            .manifest
+            .maps
+            .iter()
+            .find(|m| m.id == id)
+            .unwrap()
+            .path;
+        for (old, new) in legacy.layers.iter().zip(&map.layers) {
+            assert_eq!(old.data.len(), new.data.len());
+            for (&before, &after) in old.data.iter().zip(&new.data) {
+                if before == 0 {
+                    assert_eq!(after, 0);
+                } else {
+                    assert_eq!(before & !GID_MASK, after & !GID_MASK);
+                    let tile = world.content.resolve(map, path, after).unwrap().2;
+                    assert_eq!(
+                        tile.key(),
+                        world.content.manifest.legacy_tiles[(before & GID_MASK) as usize - 1]
+                    );
+                }
+            }
         }
         assert_eq!(
-            map.objects().collect::<Vec<_>>(),
-            migrated.maps[id].objects().collect::<Vec<_>>()
+            world.maps[id].objects().collect::<Vec<_>>(),
+            map.objects().collect::<Vec<_>>()
         );
     }
     let round_trip: World =
@@ -226,7 +251,8 @@ fn pack_fingerprints_are_portable_and_mismatches_name_the_resource() {
     std::fs::write(path, image).unwrap();
     let altered = Content::load(&folder.0).unwrap();
     let message = altered.require(&bundled).unwrap_err().to_string();
-    assert!(message.contains("objects/harbor.png") && message.contains("v1.0.0"));
+    assert!(message.contains("objects/harbor.png"));
+    assert!(message.contains(&format!("v{}", bundled.manifest.version)));
 }
 
 #[test]

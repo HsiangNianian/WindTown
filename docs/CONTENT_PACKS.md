@@ -2,9 +2,9 @@
 
 [简体中文](CONTENT_PACKS.zh-CN.md)
 
-**Source checkout / unreleased.** This format uses network protocol **3**, world
-format **2**, and pack format **1**. Run matching game/server builds. The v0.6.0
-release and the existing public deployment use protocol 2 until upgraded.
+**Available in v0.7.0.** This format uses network protocol **3**, world
+format **2**, and pack format **1**. Run matching game/server builds. Earlier releases
+use protocol 2 and cannot join protocol 3 rooms.
 
 A pack owns a finite collection of maps and their assets. The official game loads
 `assets/packs/yapshire/pack.json` through the same loader as a community pack.

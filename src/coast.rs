@@ -140,7 +140,7 @@ pub fn animate_rig(
             *visibility = Visibility::Hidden;
             continue;
         };
-        let hand = Vec2::new(7.0, 17.0);
+        let hand = Vec2::new(5.0, 16.0);
         let cast = (age / 0.65).clamp(0.0, 1.0);
         let mut float =
             hand.lerp(target, cast) + Vec2::Y * (cast * std::f32::consts::PI).sin() * 45.0;
@@ -359,7 +359,8 @@ fn spawn_maps(commands: &mut Commands, assets: &AssetServer, art: &Art, maps: &M
                         index: 6,
                     },
                 ),
-                Transform::from_xyz(x, y + 20.0, -7.0),
+                bevy::sprite::Anchor::BOTTOM_CENTER,
+                Transform::from_xyz(x, y, -7.0),
                 ChildOf(root),
             ));
             text(
@@ -368,9 +369,9 @@ fn spawn_maps(commands: &mut Commands, assets: &AssetServer, art: &Art, maps: &M
                 art,
                 tr("world.mara"),
                 x,
-                y + 49.0,
-                12.0,
-                0x365e59,
+                y + 54.0,
+                9.0,
+                0xd5b170,
             );
             text(
                 commands,
