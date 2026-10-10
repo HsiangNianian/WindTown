@@ -5,28 +5,53 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
-## [Unreleased]
+## [v0.6.0] - 2026-10-10
 
-- Save multiple Clubs with personal aliases; add, edit and remove subscriptions
-  and browse all their rooms in a grouped, scrollable online lobby. Each Club
-  refreshes independently every eight seconds with occupancy, capacity and a real
-  shared WebSocket round trip. Old servers gracefully show unknown measurements.
-- Keep Club passwords isolated in memory, migrate the previous saved server and
-  discard in-flight results after a Club address changes or is removed.
-- Keep an icon-only pixel settings gear in the top-right corner, with a 48-point
-  minimum target, touch activation and space reserved by adjacent controls.
+### Clubs and Rooms
 
-- Unify the official Cloudflare service with the Rust server. The old address
-  forwards to Yapshire Town (Yapshire 小镇), with a persistent town and a bounded
-  temporary room.
-- Connect to the official town at `wss://yap-server.mmstudio.games` or
+- Save multiple server subscriptions as Clubs, with optional personal aliases.
+  Add, edit or remove a Club without changing the actual server; browse all its
+  rooms in a grouped, collapsible and scrollable online lobby.
+- Refresh Clubs independently every eight seconds while the lobby is open. Room
+  rows show occupancy, configured capacity and a measured WebSocket round trip.
+  Rooms on one Club share its latency; older servers show unknown measurements.
+  Probes never join a room or occupy a player slot.
+- Keep each Club's password isolated in memory, migrate the previous saved server,
+  and discard pending results after an address changes or a Club is removed.
+  Automatic refreshes preserve the current scroll position.
+- Share complete server-and-room invitations. Pasting one previews the destination;
+  bare room codes still use the selected Club. Passwords are never included.
+
+### Settings
+
+- Keep an icon-only pixel gear in the window's top-right corner, including when
+  the game canvas has centered borders. Preserve a minimum 48-point tap target,
+  support touch activation and reserve space in adjacent controls.
+- Include modular English and Simplified Chinese Club catalogs, retaining English
+  fallback for missing translations.
+
+### Official Town and Networking
+
+- Unify the official Cloudflare service with the Rust server as **Yapshire Town
+  (Yapshire 小镇)**, with one persistent town and one bounded temporary room.
+- Connect at `wss://yap-server.mmstudio.games` or
   `wss://yap.meaninglessmeaning.studio`. Both domains reach the same server;
-  previous official addresses remain compatible with existing clients.
-- Use clearer room/server/lobby labels in English and Chinese. Online invitations
-  include their server and room; pasting one previews the destination and clears
-  the previous server's password. Saved official addresses migrate automatically.
+  previous official addresses remain compatible and saved defaults migrate.
 - Coalesce queued movement into each player's latest position so brief transport
   stalls do not fill the reliable chat and membership queue with obsolete frames.
+- Wait for the Rust container's initial build before running gateway checks in CI.
+
+### Compatibility and Verification
+
+- Existing v0.5.2 clients can continue using the official service. Older self-hosted
+  servers remain usable with the new client, with unknown ping/capacity where
+  unsupported. The shared map protocol remains version 2.
+- Verified native Club CRUD, password isolation, persistence, automatic player
+  counts, scrolling, both languages and joining the selected server. Settings
+  also pass a phone-sized desktop window and touch-event check; this release does
+  not include Android or iOS builds.
+- Verified both public domains with real lobby probes, two-client map transfer,
+  chat, movement and disconnect, plus the Rust client's live room lifecycle.
 
 ## [v0.5.2] - 2026-10-10
 

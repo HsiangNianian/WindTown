@@ -49,12 +49,12 @@
 **[下载最新版本](https://github.com/HsiangNianian/Yapshire/releases/latest)**，完整解压后启动。
 游玩不需要安装 Rust、Node.js，也不需要 Cloudflare 账号。
 
-| 平台 | 下载 v0.5.2 | 解压后启动 |
+| 平台 | 下载 v0.6.0 | 解压后启动 |
 | --- | --- | --- |
-| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-windows-x64.zip) | 打开 `yapshire.exe` |
-| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-linux-x64.tar.gz) | 运行 `./yapshire` |
-| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
-| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.5.2/yapshire-0.5.2-macos-x64.tar.gz) | 打开 `Yapshire.app` |
+| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.6.0/yapshire-0.6.0-windows-x64.zip) | 打开 `yapshire.exe` |
+| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.6.0/yapshire-0.6.0-linux-x64.tar.gz) | 运行 `./yapshire` |
+| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.6.0/yapshire-0.6.0-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
+| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.6.0/yapshire-0.6.0-macos-x64.tar.gz) | 打开 `Yapshire.app` |
 
 请解压**整个压缩包**。Windows 和 Linux 需要将 `assets/` 与程序放在一起；
 macOS 的资源已经放在应用内部。像素字体随包提供，包含中英文字形。
@@ -121,7 +121,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ```sh
 docker run -d --name yapshire --restart unless-stopped \
-  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.5.2
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.6.0
 ```
 
 提供 Linux AMD64/ARM64 镜像，以及四个平台的原生服务端下载。
@@ -130,7 +130,7 @@ docker run -d --name yapshire --restart unless-stopped \
 
 ## 去海边钓一会儿
 
-**上方 v0.5.2 下载包已包含钓鱼、渔具店与像素背包。**
+**上方 v0.6.0 下载包已包含钓鱼、渔具店与像素背包。**
 
 沿街向右走，跟着路牌找到 **Tide & Tackle** 渔具店。在门口按 **E** 进入，
 走到 Mara 的柜台前再按 **E** 购物。新昵称拥有 **100 枚金币**：
