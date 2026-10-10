@@ -22,6 +22,10 @@ pub const WINDOW_SIZE: UVec2 = UVec2::new(1440, 810);
 const CAMERA_Y: f32 = HEIGHT / 2.0 - 64.0;
 const CHARACTER_SIZE: UVec2 = UVec2::new(20, 32);
 
+pub(crate) fn canvas_size(scale: u32) -> UVec2 {
+    WINDOW_SIZE / scale.clamp(2, 4)
+}
+
 #[derive(Resource)]
 pub struct Art {
     pub font: Handle<Font>,
@@ -74,8 +78,8 @@ pub(crate) struct Backdrop {
     parallax: f32,
 }
 impl Backdrop {
-    fn x(&self, camera: f32, width: f32) -> f32 {
-        let margin = ((width - WIDTH) / 2.0).max(0.0);
+    fn x(&self, camera: f32, width: f32, view_width: f32) -> f32 {
+        let margin = ((width - view_width) / 2.0).max(0.0);
         (self.base.x + (camera - WIDTH / 2.0) * self.parallax)
             .clamp(camera - margin, camera + margin)
             .round()
@@ -107,6 +111,7 @@ pub fn setup(
     assets: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
+    settings: Res<crate::settings::Settings>,
 ) {
     let art = Art {
         font: assets.load("fonts/fusion-pixel.ttf"),
@@ -132,9 +137,10 @@ pub fn setup(
         water: assets.load("fishing/water.png"),
         editor_icons: assets.load("ui/editor-icons.png"),
     };
+    let view = canvas_size(settings.pixel_scale());
     let size = Extent3d {
-        width: WIDTH as u32,
-        height: HEIGHT as u32,
+        width: view.x,
+        height: view.y,
         depth_or_array_layers: 1,
     };
     let mut canvas = Image {
@@ -163,7 +169,7 @@ pub fn setup(
         RenderTarget::Image(canvas.clone().into()),
         Msaa::Off,
         WorldCamera,
-        Transform::from_xyz(WIDTH / 2.0, CAMERA_Y, 0.0),
+        Transform::from_xyz(WIDTH / 2.0, view.y as f32 / 2.0 - 64.0, 0.0),
     ));
     commands.spawn((Sprite::from_image(canvas), RenderLayers::layer(1)));
     commands.spawn((
@@ -500,6 +506,7 @@ pub fn animate(
 
 pub fn follow_camera(
     maps: Res<crate::maps::Maps>,
+    settings: Res<crate::settings::Settings>,
     time: Res<Time>,
     session: Res<Session>,
     actors: Query<&Actor>,
@@ -512,30 +519,37 @@ pub fn follow_camera(
     let map = maps
         .by_id(map_id)
         .unwrap_or(maps.get(crate::maps::MapKind(0)));
+    let view = canvas_size(settings.pixel_scale()).as_vec2();
+    let camera_y = view.y / 2.0 - 64.0;
     let width = map.width as f32 * 16.0;
-    let target = if width <= WIDTH {
+    let target = if width <= view.x {
         width / 2.0
     } else {
         mine.map_or(WIDTH / 2.0, |a| a.position.x)
-            .clamp(WIDTH / 2.0, width - WIDTH / 2.0)
+            .clamp(view.x / 2.0, width - view.x / 2.0)
     };
     if *previous_map != map_id {
         camera.translation.x = target;
         *previous_map = map_id.to_owned();
     }
     camera.translation.y = mine
-        .map_or(CAMERA_Y, |a| (a.position.y + CAMERA_Y).max(CAMERA_Y))
-        .min((map.origin_y() - HEIGHT / 2.0).max(CAMERA_Y));
+        .map_or(camera_y, |a| (a.position.y + camera_y).max(camera_y))
+        .min((map.origin_y() - view.y / 2.0).max(camera_y));
     let x = camera.translation.x
         + (target - camera.translation.x) * (1.0 - (-6.0 * time.delta_secs()).exp());
-    camera.translation.x = if (target - x).abs() < 1.0 {
+    let x = if (target - x).abs() < 1.0 {
         target.round()
     } else {
         x
     };
+    camera.translation.x = if width <= view.x {
+        width / 2.0
+    } else {
+        x.clamp(view.x / 2.0, width - view.x / 2.0)
+    };
     for (backdrop, sprite, mut transform) in &mut backdrops {
         let width = sprite.custom_size.map_or(WIDTH, |size| size.x);
-        transform.translation.x = backdrop.x(camera.translation.x, width);
+        transform.translation.x = backdrop.x(camera.translation.x, width, view.x);
         transform.translation.y = backdrop.base.y;
     }
 }
@@ -615,15 +629,33 @@ pub fn bubbles(
 pub fn fit_window(
     window: Single<&Window>,
     mut camera: Single<(&mut Camera, &mut Projection), With<OuterCamera>>,
+    target: Single<&RenderTarget, With<WorldCamera>>,
+    mut images: ResMut<Assets<Image>>,
+    settings: Res<crate::settings::Settings>,
     mut ui_scale: ResMut<UiScale>,
 ) {
     let available = window.physical_size();
     if available.min_element() == 0 {
         return;
     }
-    let fit = (available.as_vec2() / Vec2::new(WIDTH, HEIGHT)).min_element();
+    let view = canvas_size(settings.pixel_scale());
+    if let RenderTarget::Image(target) = &*target {
+        if images
+            .get(&target.handle)
+            .expect("Pixel canvas exists")
+            .size()
+            != view
+        {
+            images.get_mut(&target.handle).unwrap().resize(Extent3d {
+                width: view.x,
+                height: view.y,
+                depth_or_array_layers: 1,
+            });
+        }
+    }
+    let fit = (available.as_vec2() / view.as_vec2()).min_element();
     let scale = fit.floor().max(1.0).min(fit);
-    let size = (Vec2::new(WIDTH, HEIGHT) * scale).as_uvec2();
+    let size = (view.as_vec2() * scale).as_uvec2();
     // The UI and pixel canvas share one centered viewport, including on HiDPI displays.
     camera.0.viewport = Some(Viewport {
         physical_position: (available - size) / 2,
@@ -676,13 +708,16 @@ mod tests {
             base: Vec2::new(810.0, 124.0),
             parallax: 0.44,
         };
-        assert_eq!(backdrop.x(360.0, 1620.0), 810.0);
-        assert_eq!(backdrop.x(860.0, 1620.0), 1030.0);
-        for camera in [120.0, 260.0, 1200.0, 1920.0, 8000.0] {
-            let x = backdrop.x(camera, 1620.0);
-            assert!(x - 810.0 <= camera - WIDTH / 2.0);
-            assert!(x + 810.0 >= camera + WIDTH / 2.0);
-            assert_eq!(backdrop.x(camera, WIDTH), camera);
+        assert_eq!(backdrop.x(360.0, 1620.0, WIDTH), 810.0);
+        assert_eq!(backdrop.x(860.0, 1620.0, WIDTH), 1030.0);
+        for scale in 2..=4 {
+            let width = canvas_size(scale).x as f32;
+            for camera in [120.0, 260.0, 1200.0, 1920.0, 8000.0] {
+                let x = backdrop.x(camera, 1620.0, width);
+                assert!(x - 810.0 <= camera - width / 2.0);
+                assert!(x + 810.0 >= camera + width / 2.0);
+                assert_eq!(backdrop.x(camera, width, width), camera);
+            }
         }
     }
 
@@ -690,7 +725,15 @@ mod tests {
     fn scene_and_ui_share_the_same_viewport_across_display_sizes() {
         let mut app = App::new();
         app.init_resource::<UiScale>()
+            .init_resource::<crate::settings::Settings>()
+            .init_resource::<Assets<Image>>()
             .add_systems(Update, fit_window);
+        let image = app
+            .world_mut()
+            .resource_mut::<Assets<Image>>()
+            .add(Image::default());
+        app.world_mut()
+            .spawn((WorldCamera, RenderTarget::Image(image.clone().into())));
         let window = app.world_mut().spawn(Window::default()).id();
         let camera = app
             .world_mut()
@@ -700,15 +743,25 @@ mod tests {
                 OuterCamera,
             ))
             .id();
-        for (width, height, dpi, size, position) in [
-            (1440, 810, 1.0, (1440, 810), (0, 0)),
-            (2560, 1440, 1.0, (2160, 1215), (200, 112)),
-            (3440, 1440, 1.0, (2160, 1215), (640, 112)),
-            (1080, 2560, 1.0, (720, 405), (180, 1077)),
-            (3840, 2160, 2.0, (3600, 2025), (120, 67)),
-            (2160, 1215, 1.5, (2160, 1215), (0, 0)),
-            (320, 180, 1.0, (320, 180), (0, 0)),
+        for (scale, width, height, dpi, size, position) in [
+            (2, 1440, 810, 1.0, (1440, 810), (0, 0)),
+            (2, 2560, 1440, 1.0, (2160, 1215), (200, 112)),
+            (2, 3440, 1440, 1.0, (2160, 1215), (640, 112)),
+            (2, 1080, 2560, 1.0, (720, 405), (180, 1077)),
+            (2, 3840, 2160, 2.0, (3600, 2025), (120, 67)),
+            (2, 2160, 1215, 1.5, (2160, 1215), (0, 0)),
+            (2, 320, 180, 1.0, (320, 180), (0, 0)),
+            (3, 1440, 810, 1.0, (1440, 810), (0, 0)),
+            (3, 2560, 1440, 1.0, (2400, 1350), (80, 45)),
+            (3, 3840, 2160, 2.0, (3840, 2160), (0, 0)),
+            (4, 1440, 810, 1.0, (1440, 808), (0, 1)),
+            (4, 2560, 1440, 1.0, (2520, 1414), (20, 13)),
+            (4, 3840, 2160, 2.0, (3600, 2020), (120, 70)),
+            (4, 1080, 2560, 1.0, (1080, 606), (0, 977)),
         ] {
+            app.world_mut()
+                .resource_mut::<crate::settings::Settings>()
+                .choose_scale(scale);
             let mut w = app.world_mut().get_mut::<Window>(window).unwrap();
             w.resolution.set_scale_factor(dpi);
             w.resolution.set_physical_resolution(width, height);
@@ -724,12 +777,21 @@ mod tests {
             assert_eq!(viewport.physical_position, UVec2::from(position));
             let ui_size =
                 viewport.physical_size.as_vec2() / (dpi * app.world().resource::<UiScale>().0);
-            assert!((ui_size - WINDOW_SIZE.as_vec2()).length() < 0.01);
+            let view = canvas_size(scale).as_vec2();
+            assert!((ui_size - view / view.x * WINDOW_SIZE.x as f32).length() < 0.01);
             let Projection::Orthographic(p) = app.world().get::<Projection>(camera).unwrap() else {
                 panic!("Expected orthographic camera");
             };
             let scene_size = viewport.physical_size.as_vec2() / dpi * p.scale;
-            assert!((scene_size - Vec2::new(WIDTH, HEIGHT)).length() < 0.01);
+            assert!((scene_size - view).length() < 0.01);
+            assert_eq!(
+                app.world()
+                    .resource::<Assets<Image>>()
+                    .get(&image)
+                    .unwrap()
+                    .size(),
+                canvas_size(scale)
+            );
         }
     }
 

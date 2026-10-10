@@ -684,14 +684,14 @@ impl Editor {
     }
 }
 
-// Physical window pixels -> the same 1440x810 UI coordinates as game::fit_window.
+// Use the uniform UI scale; 4x world pixels leave a two-pixel vertical border.
 pub(crate) fn ui_point(cursor: Vec2, viewport: URect) -> Option<Vec2> {
     let point = cursor - viewport.min.as_vec2();
     let size = viewport.size().as_vec2();
     if size.min_element() <= 0.0 || point.cmplt(Vec2::ZERO).any() || point.cmpge(size).any() {
         return None;
     }
-    Some(point * (game::WINDOW_SIZE.as_vec2() / size))
+    Some(point * (game::WINDOW_SIZE.x as f32 / size.x))
 }
 
 fn line(from: UVec2, to: UVec2) -> Vec<UVec2> {

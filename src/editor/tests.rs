@@ -200,6 +200,12 @@ fn pointer_mapping_handles_hidpi_letterboxing_zoom_and_map_edges() {
     let point = ui_point(viewport.min.as_vec2() + ui * 2.0, viewport).unwrap();
     assert!(point.abs_diff_eq(ui, 0.001));
     assert!(ui_point(Vec2::ZERO, viewport).is_none());
+    let four_x = URect::from_corners(UVec2::new(20, 13), UVec2::new(2540, 1427));
+    assert!(
+        ui_point(four_x.min.as_vec2() + ui * 1.75, four_x)
+            .unwrap()
+            .abs_diff_eq(ui, 0.001)
+    );
     let mut runtime = maps();
     let workspace = Workspace::new();
     let mut editor = Editor::from_directory(&mut runtime, Ok(workspace.0.clone()));

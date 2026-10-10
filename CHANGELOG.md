@@ -7,6 +7,19 @@ and commits it after all platform archives have been uploaded and verified.
 
 ## [Unreleased]
 
+## [v0.7.2] - 2026-10-10
+
+### Pixel scale settings
+
+- Choose 2x, 3x or 4x in Settings. Larger pixels bring the world closer; the
+  default remains 2x. Apply changes immediately and remember them after restart.
+- Keep terrain and characters crisp with integer scaling in windowed and
+  fullscreen modes. Update camera bounds, background coverage and editor pointer
+  mapping when the render canvas changes.
+- Preserve language, saved Clubs and other preferences when saving the scale.
+  Include English and Simplified Chinese labels. Protocol 3 and content pack
+  1.1.0 remain compatible with v0.7.1 servers.
+
 ## [v0.7.1] - 2026-10-10
 
 This is the first published 0.7 release. The v0.7.0 tag failed the optimized test

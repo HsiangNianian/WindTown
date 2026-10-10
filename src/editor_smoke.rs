@@ -74,7 +74,7 @@ pub(crate) fn drive(
     let point_ui = |window: &mut Window, ui: Vec2| {
         let viewport = camera.physical_viewport_rect().unwrap();
         let physical =
-            viewport.min.as_vec2() + ui * viewport.size().as_vec2() / game::WINDOW_SIZE.as_vec2();
+            viewport.min.as_vec2() + ui * (viewport.width() as f32 / game::WINDOW_SIZE.x as f32);
         window.set_physical_cursor_position(Some(physical.as_dvec2()));
     };
     let point = |window: &mut Window, cell: UVec2| {

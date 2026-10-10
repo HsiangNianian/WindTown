@@ -49,18 +49,18 @@
 **[下载最新版本](https://github.com/HsiangNianian/Yapshire/releases/latest)**，完整解压后启动。
 游玩不需要安装 Rust、Node.js，也不需要 Cloudflare 账号。
 
-| 平台 | 下载 v0.7.1 | 解压后启动 |
+| 平台 | 下载 v0.7.2 | 解压后启动 |
 | --- | --- | --- |
-| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-windows-x64.zip) | 打开 `yapshire.exe` |
-| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-linux-x64.tar.gz) | 运行 `./yapshire` |
-| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
-| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.1/yapshire-0.7.1-macos-x64.tar.gz) | 打开 `Yapshire.app` |
+| Windows · x64 | [下载 ZIP](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.2/yapshire-0.7.2-windows-x64.zip) | 打开 `yapshire.exe` |
+| Linux · x64 | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.2/yapshire-0.7.2-linux-x64.tar.gz) | 运行 `./yapshire` |
+| macOS · Apple Silicon | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.2/yapshire-0.7.2-macos-arm64.tar.gz) | 打开 `Yapshire.app` |
+| macOS · Intel | [下载 tar.gz](https://github.com/HsiangNianian/Yapshire/releases/download/v0.7.2/yapshire-0.7.2-macos-x64.tar.gz) | 打开 `Yapshire.app` |
 
 请解压**整个压缩包**。Windows 和 Linux 需要将 `assets/` 与程序放在一起；
 macOS 的资源已经放在应用内部。像素字体随包提供，包含中英文字形。
 每次发布同时提供 `SHA256SUMS` 校验文件和 `CHANGELOG.md`，更新日志与 Release Notes 同步。
 
-客户端与服务端需要使用匹配的 **v0.7.1** 构建（协议 3），公共服务使用同一套版本化内容包。旧版客户端需要先更新。详见[开服指南](docs/SELF_HOSTING.zh-CN.md)。
+客户端与服务端需要使用 **v0.7.x**（协议 3）及匹配的内容包，公共服务使用同一套版本化内容包。旧版客户端需要先更新。详见[开服指南](docs/SELF_HOSTING.zh-CN.md)。
 
 <details>
 <summary><strong>各平台说明</strong></summary>
@@ -87,7 +87,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 也可以使用 `wss://yap.meaninglessmeaning.studio`。两个地址共用房间和玩家列表。
 `NIANNIAN` 是常驻房间，玩家也可以创建临时房间。旧官方地址继续兼容已有客户端；
 更新后的客户端会把已保存的旧官方地址迁移到新默认地址。
-请使用 **v0.7.1 客户端**，以匹配公共服务器的协议 3 和版本化内容包。
+请使用 **v0.7.x 客户端**，以匹配公共服务器的协议 3 和版本化内容包。
 
 在线大厅打开时，各 Club 每八秒独立刷新，显示房间人数／容量与实测延迟。
 延迟是同一 Club 共用的 WebSocket 往返时间；旧服务端不支持的延迟或容量显示为未知，
@@ -120,7 +120,7 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ```sh
 docker run -d --name yapshire --restart unless-stopped \
-  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.7.1
+  -p 4761:4761 ghcr.io/hsiangnianian/yapshire-server:v0.7.2
 ```
 
 提供 Linux AMD64/ARM64 镜像，以及四个平台的原生服务端下载。
@@ -129,7 +129,7 @@ docker run -d --name yapshire --restart unless-stopped \
 
 ## 去海边钓一会儿
 
-**上方 v0.7.1 下载包已包含钓鱼、渔具店与像素背包。**
+**上方 v0.7.2 下载包已包含钓鱼、渔具店与像素背包。**
 
 沿街向右走，跟着路牌找到 **Tide & Tackle** 渔具店。在门口按 **E** 进入，
 走到 Mara 的柜台前再按 **E** 购物。新昵称拥有 **100 枚金币**：
@@ -170,9 +170,9 @@ docker run -d --name yapshire --restart unless-stopped \
 金色辅助标记直接显示地图定义的交互对象。
 详细操作见[游戏内编辑器指南](docs/DEVELOPMENT.md#in-game-map-editor)。
 
-**v0.7.1 新增：**[内容包规范 v1](docs/CONTENT_PACKS.zh-CN.md) 将地形、水体、建筑、物件和背景拆为独立资源，
+**v0.7.1 引入：**[内容包规范 v1](docs/CONTENT_PACKS.zh-CN.md) 将地形、水体、建筑、物件和背景拆为独立资源，
 提供稳定 ID、自动连接地形、完整物件印章、多地图与可变尺寸，以及地图定义的碰撞、传送门、商店和钓鱼区域。
-社区内容包与官方资源共用加载流程。此版本使用协议 3，需要匹配的 v0.7.1 服务端；旧版协议 2 无法加入新版房间。
+社区内容包与官方资源共用加载流程。此版本使用协议 3，需要匹配的协议 3 服务端；旧版协议 2 无法加入新版房间。
 
 本版还加入了[秋日湖岸美术更新](docs/ART_DIRECTION.zh-CN.md)：雾蓝远山、针叶林、金色白桦、
 雪松木屋与深森林色配黄铜色界面，继续支持可编辑 tilemap 和内置中英文字体。
@@ -181,7 +181,9 @@ docker run -d --name yapshire --restart unless-stopped \
 
 主菜单、游戏和地图编辑器**右上角常驻纯像素齿轮**，小窗口下保留至少 48 点的点击区域。
 点击后可以
-即时切换 **English / 简体中文**，重启后会记住选择。缺失的翻译默认显示英文。
+即时切换 **English / 简体中文**，重启后会记住选择。**像素缩放（SCALE）**可选
+**2x / 3x / 4x**，默认 **2x**；倍率越大，人物和地形越大、视野越近。
+切换立即生效，重启后保留，支持窗口和全屏。缺失的翻译默认显示英文。
 文案按功能拆分在 `assets/locales/` 下，翻译方式见[翻译指南](docs/TRANSLATING.md)。
 
 ## 操作方式

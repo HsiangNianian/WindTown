@@ -7,8 +7,9 @@ The visual reference is the atmospheric pixel landscape in
 Yapshire uses its own scenery, characters, tiles and interface: blue mountain
 haze, dark conifers, ochre birches, cedar siding, pale window light and quiet
 horizontal water reflections. Foreground silhouettes stay darker and sharper
-than the distant landscape. All rendering passes through the 720 × 405 nearest
-sampled world canvas; UI retains the bundled pixel font in both languages.
+than the distant landscape. The default 2x view uses a 720 × 405 nearest-sampled
+world canvas. Settings also offers 3x and 4x for larger pixels and a closer view;
+UI uses the bundled pixel font in both languages.
 
 Actual development build (English):
 

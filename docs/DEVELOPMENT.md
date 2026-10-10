@@ -245,7 +245,7 @@ creator leaving while others remain, and close when empty. Chat history and
 positions are not saved between sessions. The old `yapshire-multiplayer` address
 is a service-binding gateway to this server, not a separate room backend.
 
-v0.7.1 uses protocol **3** and world format **2**. Clients require a
+v0.7.2 uses protocol **3** and world format **2**. Clients require a
 validated world and matching installed content before acknowledging entry. Update
 the game and server together; older releases use incompatible protocol 2. There is no legacy no-world handshake fallback in this build.
 Positions are transmitted
@@ -387,6 +387,12 @@ The LAN run uses local port 4777.
 and the restored window size, saving screenshots of all three stages under
 `artifacts/`. This uses the real window backend and GPU, with no desktop input injection.
 
+`YAPSHIRE_SMOKE=i18n-scale` exercises the settings buttons, all three pixel scales,
+fullscreen, the language switch and editor pointer mapping. Follow it with
+`YAPSHIRE_SMOKE=i18n-reload` using the same isolated settings directory to verify
+that Chinese and 4x are restored. Set separate `YAPSHIRE_SETTINGS_DIR`,
+`YAPSHIRE_MAP_DIR` and `YAPSHIRE_SAVE_DIR` directories for this check.
+
 For a full native GPU acceptance run, launch two debug builds with
 `YAPSHIRE_SMOKE=host-lan` and `YAPSHIRE_SMOKE=guest-lan` (or `host-cloud` and
 `guest-cloud`). They exercise the actual menu actions, discover and join a room,
@@ -415,8 +421,10 @@ clients using their respective interface language. Banner lettering is stored as
 SVG paths, so Chinese text needs no installed fonts.
 
 - Bevy **0.18.1** and [bevy_ecs_tilemap **0.18.1**](https://github.com/StarArawn/bevy_ecs_tilemap).
-- A 720 × 405 world render texture, nearest-neighbor sampling, and integer pixel
-  scaling; high-resolution UI still uses the bundled pixel font.
+- A world render texture selected in Settings: 720 × 405 at 2x (default),
+  480 × 270 at 3x, or 360 × 202 at 4x. Use nearest-neighbor sampling and integer
+  pixel scaling; high-resolution UI still uses the bundled pixel font. The 4x
+  canvas leaves a one-pixel border above and below in the fixed window.
 - Original 16-pixel terrain tiles, four 20 × 32 characters with six animation
   frames each, a layered autumn landscape, drifting clouds and falling leaves.
 - The illustrated lake panorama uses nearest-neighbor sampling through the same
@@ -487,18 +495,18 @@ root, update both README download tables and add the version entry to
 `CHANGELOG.md`, then review and commit the changes before tagging:
 
 ```sh
-RELEASE_TAG=v0.7.1 node .github/scripts/validate-release.mjs --write
+RELEASE_TAG=v0.7.2 node .github/scripts/validate-release.mjs --write
 node .github/scripts/validate-release.mjs
 git add Cargo.toml Cargo.lock crates/*/Cargo.toml server/package.json server/package-lock.json
 git add README.md README.zh-CN.md CHANGELOG.md
-git commit -m "chore: release v0.7.1"
+git commit -m "chore: release v0.7.2"
 # Once the release commit is on main:
-git tag -a v0.7.1 -m "Release v0.7.1"
-git push --atomic origin main v0.7.1
+git tag -a v0.7.2 -m "Release v0.7.2"
+git push --atomic origin main v0.7.2
 ```
 
 For an unchanged first version, skip the empty version commit. PowerShell users
-can set `$env:RELEASE_TAG = "v0.7.1"` before running the same Node command.
+can set `$env:RELEASE_TAG = "v0.7.2"` before running the same Node command.
 Only stable `vX.Y.Z` tags are accepted. CI rejects source/tag version mismatches;
 it never changes source versions during a release.
 
