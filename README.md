@@ -274,7 +274,11 @@ Bug reports, gameplay improvements, pixel art, and documentation are welcome.
 For connection issues, include the platform, LAN or online mode, and steps to
 reproduce. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Install the [pre-commit hooks](CONTRIBUTING.md#pre-commit-checks) once per checkout,
+then run:
+
 ```sh
+pre-commit run --all-files
 cargo fmt --all -- --check
 cargo test --workspace --locked
 node --test .github/scripts/*.test.mjs

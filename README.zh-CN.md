@@ -232,7 +232,10 @@ cargo run --locked
 欢迎提交问题、玩法改进、像素美术和文档修改。报告连接问题时，请附上平台、
 局域网或在线模式，以及复现步骤。详见[贡献指南](CONTRIBUTING.md)。
 
+首次使用时先[安装 pre-commit hooks](CONTRIBUTING.md#pre-commit-checks)，然后运行：
+
 ```sh
+pre-commit run --all-files
 cargo fmt --all -- --check
 cargo test --workspace --locked
 node --test .github/scripts/*.test.mjs
