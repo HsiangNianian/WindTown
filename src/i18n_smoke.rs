@@ -11,6 +11,7 @@ use crate::{
 };
 use bevy::{
     ecs::system::SystemParam,
+    input::touch::{TouchInput, TouchPhase},
     prelude::*,
     render::view::screenshot::{Screenshot, save_to_disk},
     window::WindowCloseRequested,
@@ -30,7 +31,11 @@ pub(crate) struct Controls<'w, 's> {
     settings: Query<
         'w,
         's,
-        (&'static settings::Action, &'static mut Interaction),
+        (
+            &'static settings::Action,
+            &'static mut Interaction,
+            &'static ComputedNode,
+        ),
         Without<editor::Action>,
     >,
     editor: Query<
@@ -42,14 +47,15 @@ pub(crate) struct Controls<'w, 's> {
     mouse: ResMut<'w, ButtonInput<MouseButton>>,
     keys: ResMut<'w, ButtonInput<KeyCode>>,
     close: MessageWriter<'w, WindowCloseRequested>,
+    touch: MessageWriter<'w, TouchInput>,
 }
 
 impl Controls<'_, '_> {
     fn settings(&mut self, action: settings::Action) {
-        let (_, mut interaction) = self
+        let (_, mut interaction, _) = self
             .settings
             .iter_mut()
-            .find(|(a, _)| **a == action)
+            .find(|(a, _, _)| **a == action)
             .expect("Missing settings button");
         *interaction = Interaction::Pressed;
         self.mouse.press(MouseButton::Left);
@@ -82,6 +88,9 @@ pub(crate) fn drive(
     let mode = std::env::var("YAPSHIRE_SMOKE").unwrap_or_default();
     if !mode.starts_with("i18n") {
         return;
+    }
+    if mode == "i18n-compact" && check.stage == 0 && controls.window.1.width() != 844.0 {
+        controls.window.1.resolution.set(844.0, 390.0);
     }
     for variable in [
         "YAPSHIRE_SETTINGS_DIR",
@@ -125,12 +134,37 @@ pub(crate) fn drive(
     match check.stage {
         0 => {
             assert_eq!(i18n.language, Language::English);
+            let (_, _, gear) = controls
+                .settings
+                .iter()
+                .find(|(a, _, _)| **a == settings::Action::Open)
+                .unwrap();
+            assert!(gear.size().min_element() / controls.window.1.scale_factor() >= 47.9);
             capture(&mut commands, "home-en");
             menu.name = "小风{name}".into();
+        }
+        1 if mode == "i18n-compact" => {
+            let position = Vec2::new(controls.window.1.width() - 36.0, 36.0);
+            let window = controls.window.0;
+            controls.touch.write(TouchInput {
+                phase: TouchPhase::Started,
+                position,
+                window,
+                id: 1,
+                force: None,
+            });
         }
         1 => controls.settings(settings::Action::Open),
         2 => {
             assert!(settings.open && has("Choose the language"));
+            let window = controls.window.0;
+            controls.touch.write(TouchInput {
+                phase: TouchPhase::Ended,
+                position: Vec2::ZERO,
+                window,
+                id: 1,
+                force: None,
+            });
             capture(&mut commands, "settings-en");
         }
         3 => controls.settings(settings::Action::Language(Language::Chinese)),

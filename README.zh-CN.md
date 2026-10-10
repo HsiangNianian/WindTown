@@ -74,11 +74,26 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
 
 ## 在小镇碰面
 
-1. **自己开房（Host a room）。** 输入昵称，选择局域网（Local network）或在线服务器（Online server）。在线开房填写**房间名**，可以使用内置公共服务器或自己的服务器。用 **Copy invite** 分享局域网地址或房间邀请码。
+1. **创建房间（Create a room）。** 输入昵称，选择局域网（Local network）或在线房间（Online room）。在线建房填写**房间名**，可以使用内置公共服务器或自己的服务器。用 **复制邀请** 分享局域网地址或完整在线邀请。
 2. **局域网联机（Join LAN）。** 自动寻找同一网络里的房间，点选即可加入，也可以手动填写地址和端口。
-3. **服务器联机（Join server）。** 浏览有名字的房间，或输入邀请码加入。可以填写自建服务器地址和可选密码；创建与加入共用已保存的地址，密码仅在本次运行中保留。
+3. **在线大厅（Online lobby）。** 点击**添加 Club**，填写服务器地址和可选别名，自动展示它的所有房间。可以收藏多个 Club、修改别名或地址、从自己的列表移除。选中 Club 后，可在其中创建房间、加入已有房间，或粘贴完整邀请。
 
-大厅每八秒自动刷新，显示房间人数。每个房间最多 **16 人**。
+**Club** 是保存到本机的服务器订阅，可以起自己的别名。**服务器**承载一个或多个**房间**，
+**在线大厅**按 Club 分组展示房间。
+创建房间使用已有服务器；搭建服务器是服主独立部署服务的操作。
+在线邀请包含服务器地址和房间码，不含密码。粘贴后先显示目标地址，再点击加入；
+单独输入八位房间码仍会使用当前选定的服务器。
+
+官方服务器为 **Yapshire 小镇**，默认地址为 `wss://yap-server.mmstudio.games`，
+也可以使用 `wss://yap.meaninglessmeaning.studio`。两个地址共用房间和玩家列表。
+`NIANNIAN` 是常驻房间，玩家也可以创建临时房间。旧官方地址继续兼容已有客户端；
+更新后的客户端会把已保存的旧官方地址迁移到新默认地址。
+请使用 **v0.5.2 或更新的客户端**；v0.5 之前的客户端不支持服务端地图同步。
+
+在线大厅打开时，各 Club 每八秒独立刷新，显示房间人数／容量与实测延迟。
+延迟是同一 Club 共用的 WebSocket 往返时间；旧服务端不支持的延迟或容量显示为未知，
+一个 Club 离线不会阻止其他列表刷新。各 Club 的密码分别保留在本次运行的内存里。
+每个房间最多 **16 人**，服主可以设置更低的上限。
 按 **Enter** 聊天，消息同时显示在角色头顶和最近聊天记录中；输入时角色停止移动。
 
 <details>
@@ -88,14 +103,14 @@ macOS 的资源已经放在应用内部。像素字体随包提供，包含中�
   <img src="docs/screenshots/host-zh.png" alt="在线开房实机截图：共用的服务器地址、可选密码与房间名称" width="960">
 </p>
 <p align="center">
-  <img src="docs/screenshots/lobby-zh.png" alt="在线大厅实机截图：自动显示房间名称和人数，也支持手动连接" width="960">
+  <img src="docs/screenshots/lobby-zh.png" alt="在线大厅实机截图：按收藏的 Club 分组，显示房间人数和实测延迟" width="960">
 </p>
 
 </details>
 
 公共服务和局域网房间没有账号或密码，独立服务端可以设置共用密码。
 局域网自动发现需要处于同一广播网络；发现被阻止时可手动输入地址。
-演示服务器最多容纳 40 个房间。房间生命周期、端口、代理和连接限制见[联网说明](docs/DEVELOPMENT.md#networking)。
+官方小镇提供一个常驻房间和一个临时房间。房间生命周期、端口、代理和连接限制见[联网说明](docs/DEVELOPMENT.md#networking)。
 
 ## 开自己的服务端
 
@@ -158,7 +173,8 @@ docker run -d --name yapshire --restart unless-stopped \
 
 ## 设置与语言
 
-**v0.4.0 新增：**主菜单、游戏和地图编辑器中都可点击像素齿轮 **Settings / 设置**，
+主菜单、游戏和地图编辑器**右上角常驻纯像素齿轮**，小窗口下保留至少 48 点的点击区域。
+点击后可以
 即时切换 **English / 简体中文**，重启后会记住选择。缺失的翻译默认显示英文。
 文案按功能拆分在 `assets/locales/` 下，翻译方式见[翻译指南](docs/TRANSLATING.md)。
 
@@ -206,10 +222,10 @@ cargo run --locked
 
 - **Rust · Bevy 0.18.1 · bevy_ecs_tilemap：**480 × 270 的世界画面，整数倍像素缩放、原创角色与地块、分层场景。
 - **Fusion Pixel Font：**随游戏打包的像素字体，用于菜单、聊天和气泡。
-- **WebSockets · Cloudflare Workers · Durable Objects：**本地和在线房间共用游戏协议，在线大厅负责发现房间，每个在线房间使用独立 Durable Object。
+- **WebSockets · Cloudflare Containers：**局域网、自建服务器和官方在线服务共用 Rust 服务端；Worker 与 Durable Object 将官方入口的连接转发到服务端容器。
 
 独立服务端代码在 `crates/yapshire-server`，共享地图和协议模块在 `crates/yapshire-shared`。
-另一种部署方式是 `server/` 下的 Cloudflare Worker，见[Worker 指南](docs/DEVELOPMENT.md#cloudflare-server)。
+`server/` 包含 Cloudflare 部署和旧地址兼容入口，见[部署指南](docs/DEVELOPMENT.md#cloudflare-server)。
 
 ## 开发与贡献
 

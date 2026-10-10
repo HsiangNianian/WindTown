@@ -5,6 +5,29 @@ prepared before tagging are also bundled in every platform archive. When an
 entry is absent, the release workflow generates it from Conventional Commits
 and commits it after all platform archives have been uploaded and verified.
 
+## [Unreleased]
+
+- Save multiple Clubs with personal aliases; add, edit and remove subscriptions
+  and browse all their rooms in a grouped, scrollable online lobby. Each Club
+  refreshes independently every eight seconds with occupancy, capacity and a real
+  shared WebSocket round trip. Old servers gracefully show unknown measurements.
+- Keep Club passwords isolated in memory, migrate the previous saved server and
+  discard in-flight results after a Club address changes or is removed.
+- Keep an icon-only pixel settings gear in the top-right corner, with a 48-point
+  minimum target, touch activation and space reserved by adjacent controls.
+
+- Unify the official Cloudflare service with the Rust server. The old address
+  forwards to Yapshire Town (Yapshire 小镇), with a persistent town and a bounded
+  temporary room.
+- Connect to the official town at `wss://yap-server.mmstudio.games` or
+  `wss://yap.meaninglessmeaning.studio`. Both domains reach the same server;
+  previous official addresses remain compatible with existing clients.
+- Use clearer room/server/lobby labels in English and Chinese. Online invitations
+  include their server and room; pasting one previews the destination and clears
+  the previous server's password. Saved official addresses migrate automatically.
+- Coalesce queued movement into each player's latest position so brief transport
+  stalls do not fill the reliable chat and membership queue with obsolete frames.
+
 ## [v0.5.2] - 2026-10-10
 
 ### Self-hosted Towns

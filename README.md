@@ -82,17 +82,37 @@ original map. See [self-hosting](docs/SELF_HOSTING.md) for compatibility and set
 
 ## Meet me in town
 
-1. **Host a room.** Enter a nickname and choose **Local network** or **Online
-   server**. Enter a **room name** and keep the public server or choose your own.
-   Use **Copy invite** to share the LAN address or room code.
+1. **Create a room.** Enter a nickname and choose **Local network** or **Online
+   room**. Enter a **room name** and keep the public server or choose your own.
+   Use **Copy invite** to share the LAN address or a complete online invitation.
 2. **Join LAN.** Rooms on the same network appear automatically. Click one to
    join, or enter an address and port yourself.
-3. **Join server.** Browse named public rooms or enter an invite code. You can
-   also enter your own server address and optional shared password. Hosting and
-   joining share the saved address; passwords stay only for the current run.
+3. **Online lobby.** Choose **Add Club**, enter a server address and an optional
+   personal alias, and its rooms appear automatically. Save multiple Clubs, edit
+   their names or addresses, or remove them from your list. Select a Club to
+   create a room there, join a listed room, or paste a complete invitation.
 
-Lobbies refresh every eight seconds and show player counts. Each room holds up
-to **16 players**. Press **Enter** to chat; messages appear above your character
+A **Club** is a saved server subscription with your own alias. Its **server**
+hosts one or more **rooms**; the **online lobby** groups rooms by Club.
+Creating a room uses the selected server. Running your own server is a separate
+operator task. Online invitations include the server address and room code, never
+the password; pasting one shows its destination before joining. Eight-character
+codes still work on the currently selected server.
+
+The official server is **Yapshire Town (Yapshire 小镇)** at
+`wss://yap-server.mmstudio.games`, also available at
+`wss://yap.meaninglessmeaning.studio`. Both addresses share the same rooms and
+players. Its `NIANNIAN` room is always listed, and players can create temporary
+rooms. The previous official addresses remain available for existing clients;
+updated clients migrate saved official addresses to the new default. Use
+**v0.5.2+** clients; pre-v0.5 clients do not support its map handshake.
+
+While the online lobby is open, Clubs refresh independently every eight seconds
+and show room names, player counts/capacity and measured latency. Room latency
+is the shared Club WebSocket round trip; old servers show unknown latency or
+capacity instead of estimates. A failed Club does not block the other listings.
+Passwords stay in memory for the current run, separately for each Club. Rooms
+hold up to **16 players**, with lower limits configurable by the server owner. Press **Enter** to chat; messages appear above your character
 and in the recent chat log. Movement pauses while you type.
 
 <details>
@@ -102,15 +122,15 @@ and in the recent chat log. Movement pauses while you type.
   <img src="docs/screenshots/host-en.png" alt="Online hosting with a shared server address, optional password and room name" width="960">
 </p>
 <p align="center">
-  <img src="docs/screenshots/lobby-en.png" alt="The online lobby lists room names and player counts, with manual connection available" width="960">
+  <img src="docs/screenshots/lobby-en.png" alt="The online lobby groups rooms by saved Club and shows occupancy and measured latency" width="960">
 </p>
 
 </details>
 
 Public-service and LAN rooms have no accounts or passwords. Dedicated servers
 can require a shared password. LAN discovery needs the same
-broadcast network; use a manual address when discovery is blocked. The demo
-server supports up to 40 rooms. See the [networking guide](docs/DEVELOPMENT.md#networking)
+broadcast network; use a manual address when discovery is blocked. See the
+[networking guide](docs/DEVELOPMENT.md#networking)
 for room lifetimes, ports, proxies, and connection limits.
 
 ## Run your own server
@@ -185,8 +205,8 @@ See the [in-game editor guide](docs/DEVELOPMENT.md#in-game-map-editor).
 
 ## Settings and language
 
-**New in v0.4.0:** open the pixel gear **Settings** button from the
-menu, game or map editor. Switch between **English** and **简体中文** immediately;
+Open the icon-only pixel gear in the **top-right corner** from the
+menu, game or map editor. Its tap target stays at least 48 points on small windows. Switch between **English** and **简体中文** immediately;
 your choice is remembered after restarting. Missing translations fall back to
 English. Translation files are split by feature under `assets/locales/`; see the
 [translation guide](docs/TRANSLATING.md) to contribute.
@@ -240,13 +260,13 @@ for hosting a LAN room.
   scaling, original sprites and tiles, and layered scenery.
 - **Fusion Pixel Font** — a bundled bitmap-style font for menus, chat, and
   speech bubbles.
-- **WebSockets · Cloudflare Workers · Durable Objects** — the same game protocol
-  for local rooms and online play, with a shared online lobby and a separate
-  Durable Object for each online room.
+- **WebSockets · Cloudflare Containers** — the same Rust server handles local,
+  self-hosted and official online rooms; a Worker and Durable Object route
+  connections to the official server container.
 
 The headless server lives in `crates/yapshire-server`, with shared map and protocol
-types in `crates/yapshire-shared`. The alternative Cloudflare Worker remains in
-`server/`; see [Worker setup](docs/DEVELOPMENT.md#cloudflare-server).
+types in `crates/yapshire-shared`. Cloudflare deployment and the old-address
+gateway live in `server/`; see [deployment setup](docs/DEVELOPMENT.md#cloudflare-server).
 
 ## Development and contributions
 

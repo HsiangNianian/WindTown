@@ -1,8 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "yapshire-multiplayer",
+  "account_id": "9418702dcbab1a8777f664d07852a04d",
   "main": "src/index.js",
   "compatibility_date": "2026-07-08",
+  "services": [{ "binding": "SERVER", "service": "niannian-club" }],
   "workers_dev": true,
   "durable_objects": {
     "bindings": [
@@ -14,5 +16,9 @@
     { "tag": "v1", "new_sqlite_classes": ["Room"] },
     { "tag": "v2", "new_sqlite_classes": ["Lobby"] }
   ],
-  "observability": { "enabled": true }
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 0.1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
 }

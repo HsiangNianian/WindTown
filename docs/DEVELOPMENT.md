@@ -18,25 +18,44 @@ copy its binary and the entire `assets/` directory into the same folder.
 
 ### Main menu
 
-- **Host a room**: choose **Local network** or **Online server**. Online hosting
+- **Create a room**: choose **Local network** or **Online room**. Online hosting
   asks for a room name (up to 24 characters), server address and optional password.
   Hosting and joining share the saved address; the public server is the default.
 - **Join LAN**: automatically discovers nearby rooms. Click a room, or enter an
   IP and port yourself. On the same computer, use `127.0.0.1:4761`.
-- **Join server**: automatically lists rooms at the selected server. Click a room,
-  or enter its eight-character invite code. You can replace the server address.
+- **Online lobby**: save multiple server subscriptions called **Clubs**. Add a
+  server address and optional local alias; its rooms appear below that Club. Edit
+  or remove subscriptions, collapse groups, and scroll through the directory.
+  Clicking a room uses that Club's address and its own optional password. Full
+  invitations also work, while bare room codes use the selected Club.
 
-The lobby refreshes every eight seconds and also has a **Refresh rooms** button.
-Online rooms display their chosen name and current player count; LAN rooms use
+While the lobby is open, Clubs refresh independently every eight seconds;
+**Refresh all** also schedules every Club immediately. Up to four scans run at
+once, with the longest-waiting entries first. Leaving the lobby stops new scans.
+Each room displays its name, occupancy/capacity and its Club's measured WebSocket
+round trip. The round trip excludes the initial connection and map download; all
+rooms on the same server share it. Legacy servers show unknown ping/capacity.
+Failed scans retain clearly marked stale rooms and disable joining from them.
+
+Club aliases, addresses and stable IDs save atomically in `settings.json`. At
+most 32 Clubs can be saved; duplicate normalized addresses are rejected. Migration
+keeps the previous custom address alongside the official town; explicitly empty
+lists stay empty. Passwords are isolated per Club in memory, never serialized.
+Changing credentials/addresses invalidates pending results.
+
+Online rooms display their chosen name; LAN rooms use
 the host's nickname. Empty player-created online rooms disappear from the lobby;
-a dedicated server's configured town stays listed. The **Copy invite** button copies a LAN address or an
-online room code; custom servers also need their address shared with friends.
+a dedicated server's configured town stays listed. **Copy invite** copies a LAN
+address or a complete online URL such as `wss://host.example/room/ABCDEFGH`.
+Invitations never include passwords, player names or room-creation parameters.
 
 The default deployed server is:
 
 ```text
-wss://yapshire-multiplayer.opensource-941.workers.dev
+wss://yap-server.mmstudio.games
 ```
+
+`wss://yap.meaninglessmeaning.studio` reaches the same official town.
 
 ### Controls
 
@@ -105,7 +124,10 @@ Update a self-hosted Worker together with the client to show the new area and po
 
 ## Settings and language
 
-The pixel gear **Settings** button is available in the menu, game and map editor.
+The icon-only pixel gear stays in the top-right corner in the menu, game and map
+editor. Its hit area stays at least 48 logical window pixels as the game canvas
+shrinks. Adjacent lobby/editor/game controls reserve space for it. Mouse and touch
+activation both prevent a held press from clicking through a closing panel.
 Choose **English** or **简体中文**; the interface updates immediately, including
 existing status messages, without clearing chat fields or map drafts. Closing
 settings returns to the same screen. Movement, fishing and editing input pause
@@ -254,22 +276,24 @@ protection and a validated world snapshot. The client, editor and server share
 Tiled map types and wire messages from `crates/yapshire-shared`. Start with the
 [self-hosting guide](SELF_HOSTING.md) for downloads, Docker and custom maps.
 
-**Online:** a Cloudflare Worker forwards each room to its own SQLite-backed
-Durable Object. Hibernating WebSockets retain player attachments, and a separate
-Lobby Durable Object lists active rooms and removes stale entries. The room
-survives the original host leaving as long as another player remains. Empty rooms
-close; chat history and positions are not saved between sessions.
+**Official online:** a Cloudflare Worker and a single container-owning Durable
+Object forward connections to the same Rust server used for self-hosting and LAN.
+The configured `NIANNIAN` town stays listed; player-created rooms survive their
+creator leaving while others remain, and close when empty. Chat history and
+positions are not saved between sessions. The old `yapshire-multiplayer` address
+is a service-binding gateway to this server, not a separate room backend.
 
-All transports share the activity JSON protocol. LAN and dedicated servers
-add a protocol-2 world/acknowledgement exchange before admitting players; the
-client remains compatible with the Worker's original welcome message.
+All deployments use the protocol-2 world/acknowledgement exchange before
+admitting players. Use v0.5.2+ clients; pre-v0.5 clients must upgrade. The client
+can still connect to third-party deployments of the original Worker protocol.
 Positions are transmitted
 at up to 20 Hz only when changed; remote players interpolate between updates.
 Connections have timeouts and heartbeats. Each room allows 16 players, names are
 limited to 12 characters, and chat to 80 characters. The servers bound message
 size and rate, sanitize text, clamp positions, and assign identities themselves.
 This is a friendly social toy: movement is client-driven, not competitive anti-cheat.
-The demo's online lobby is limited to 40 simultaneous rooms.
+The official deployment has a bounded room count in `server/club/server.json`;
+self-hosted servers can configure up to 40 rooms.
 
 Online connections honor `https_proxy` / `HTTPS_PROXY` and `all_proxy` /
 `ALL_PROXY` for unauthenticated HTTP CONNECT proxies, with `no_proxy` / `NO_PROXY`
@@ -285,6 +309,11 @@ rooms as trusted-network play. Cloudflare account quotas and usage charges apply
 
 ## Cloudflare server
 
+`server/club/` deploys the official **Yapshire Town (Yapshire 小镇)** Rust container.
+`server/wrangler.jsonc` preserves the previous address as a thin service-binding
+gateway. Both configurations pin the intended Cloudflare account; change the
+account, names and custom-domain routes when deploying your own copy.
+
 Run `npm ci` inside `server` to install the project's pinned Wrangler version.
 Authenticate with `npx wrangler login` when deploying to your own account.
 The project uses the official npm registry. A temporary `sharp` 0.35.5 override
@@ -296,20 +325,52 @@ cd server
 npm run dev
 ```
 
-Set the game's server address to `ws://127.0.0.1:8787` for local Worker testing.
+Docker is required. This starts both Workers and the Rust container locally.
+Set the game's server address to `ws://127.0.0.1:8787` to exercise the compatibility
+gateway, or use `npm run dev:club` for the direct gateway on port 8788.
 
 ```sh
 cd server
+npm run deploy:club -- --dry-run
+npm run deploy:club
 npx wrangler deploy --dry-run
 npm run deploy
 ```
 
-After deploying your own Worker, use its `wss://...workers.dev` address in the menu.
+The official deployment binds `yap-server.mmstudio.games` and
+`yap.meaninglessmeaning.studio` as custom domains on the same Worker. The old
+`workers.dev` endpoints stay enabled for existing clients and invitations.
+When deploying your own Worker, use your own custom domain in the menu, or its
+`wss://...workers.dev` address if you have not configured a domain.
 `assets/server-url.txt` supplies the compiled default. `/health` is the health
 endpoint, `/rooms` returns the current lobby, `/lobby` serves the same listing
-over WebSocket, and `/room/ABCDEFGH` is a room connection.
+over WebSocket, and `/room/ABCDEFGH` is a room connection. A listing now includes
+each room's `capacity`; missing capacity on older servers is treated as unknown.
+`/lobby?probe=1` advertises `probe: true`, waits up to three seconds for the text
+`ping`, replies `pong`, then closes normally. It uses the same authentication,
+origin and connection limits as lobby discovery, never joins a room or changes
+player counts. Plain `/lobby` retains its immediate-list-and-close behavior.
+Deploy the Rust container first, verify it, and then switch the old gateway while
+both room listings have no active players. The retired Room/Lobby namespaces are
+kept with inactive exports for rollback; no new traffic reaches them and their
+old alarms do not reschedule. See [Official town deployment](../server/club/README.md).
 
 ## Checks
+
+The opt-in native Club check starts two isolated real Rust servers and drives the
+Bevy UI through adding, editing and removing Clubs, masked IME input, both
+languages, scrolling, automatic room/player refresh, measured ping, joining the
+correct server and reloading preferences. It stores screenshots and its result
+in `artifacts/clubs/` without changing normal saves:
+
+```sh
+cargo build --locked
+YAPSHIRE_SMOKE=clubs \
+YAPSHIRE_SETTINGS_DIR="$PWD/artifacts/clubs/settings" \
+YAPSHIRE_MAP_DIR="$PWD/artifacts/clubs/maps" \
+YAPSHIRE_SAVE_DIR="$PWD/artifacts/clubs/save" \
+  target/debug/yapshire
+```
 
 ```sh
 cargo fmt --all -- --check
@@ -317,7 +378,9 @@ cargo test --workspace --locked
 # Against a running local Worker:
 cd server && npm test
 # Against the deployed Worker (Node 24+):
-SERVER_URL=wss://yapshire-multiplayer.opensource-941.workers.dev node --use-env-proxy test/rooms.mjs
+SERVER_URL=wss://yap-server.mmstudio.games \
+  GUEST_SERVER_URL=wss://yap.meaninglessmeaning.studio \
+  node --use-env-proxy test/rooms.mjs
 ```
 
 The Rust tests also cover tackle purchases, insufficient funds, repeated purchases,
@@ -328,7 +391,7 @@ delivery, Unicode editing, bubble limits, UDP discovery, two real LAN sockets,
 and bounded TLS failure handling. Dedicated-server integration tests cover edited
 map transfer, acknowledgement, passwords, origins, admission races, capacity,
 room isolation, message size/rate limits, cleanup, shutdown and CLI initialization.
-The Worker test covers discovery, lobby cleanup, room isolation, identity, movement,
+The gateway test covers map synchronization, discovery, lobby cleanup, room isolation, identity, movement,
 shop and fishing flags, invalid activity input,
 Unicode chat, disconnects, missing rooms, and oversize input.
 
@@ -336,7 +399,7 @@ To exercise the exact Rust client's WSS, proxy, hosting, lobby, joining, movemen
 chat, and disconnect path against a real Worker, from the project root:
 
 ```sh
-YAPSHIRE_TEST_SERVER=wss://yapshire-multiplayer.opensource-941.workers.dev \
+YAPSHIRE_TEST_SERVER=wss://yap-server.mmstudio.games \
   cargo test --locked cloud_client -- --ignored --nocapture
 ```
 

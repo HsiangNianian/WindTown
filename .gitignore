@@ -10,6 +10,8 @@ __pycache__/
 *.log
 /server/node_modules/
 /server/.wrangler/
+/.wrangler/
+/server/club/.wrangler/
 /server/.dev.vars
 .env
 .env.*

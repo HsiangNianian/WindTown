@@ -186,6 +186,8 @@ pub(crate) fn render(
     assets: Res<AssetServer>,
     maps: Res<Maps>,
     roots: Query<Entity, With<Root>>,
+    scale: Res<UiScale>,
+    mut last_scale: Local<f32>,
 ) {
     if menu.page != Page::Editor {
         for root in &roots {
@@ -193,13 +195,14 @@ pub(crate) fn render(
         }
         return;
     }
-    if !editor.ui_dirty && !i18n.is_changed() && !roots.is_empty() {
+    if !editor.ui_dirty && !i18n.is_changed() && !roots.is_empty() && *last_scale == scale.0 {
         return;
     }
     for root in &roots {
         commands.entity(root).despawn();
     }
     editor.ui_dirty = false;
+    *last_scale = scale.0;
     editor.canvas_dirty = true;
     let root = commands
         .spawn((
@@ -221,14 +224,19 @@ pub(crate) fn render(
         (tr("common.save"), 798.0, 110.0, Action::Save),
         (tr("common.reload"), 920.0, 120.0, Action::Reload),
         (tr("common.original"), 1052.0, 140.0, Action::Reset),
-        (tr("common.done"), 1260.0, 156.0, Action::Done),
+        (tr("common.done"), 1200.0, 156.0, Action::Done),
     ] {
         button(
             &mut commands,
             root,
             &art,
             label,
-            [x, 18.0, width, 38.0],
+            [
+                x - (crate::settings::corner_space(scale.0) - 72.0),
+                18.0,
+                width,
+                38.0,
+            ],
             action,
         );
     }

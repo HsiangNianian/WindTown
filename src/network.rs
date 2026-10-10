@@ -17,6 +17,10 @@ use url::Url;
 
 pub const PORT: u16 = 4761;
 pub const DEFAULT_SERVER: &str = include_str!("../assets/server-url.txt");
+pub const LEGACY_SERVERS: &[&str] = &[
+    "wss://yapshire-multiplayer.opensource-941.workers.dev",
+    "wss://niannian-club.opensource-941.workers.dev",
+];
 const DISCOVERY_PORT: u16 = 4762;
 const DISCOVER: &[u8] = b"YAPSHIRE_DISCOVER_V1";
 
@@ -64,6 +68,7 @@ fn scan_lan(port: u16) -> Result<Vec<RoomEntry>, String> {
                             code: String::new(),
                             name: clean(&reply.name, 12),
                             players: reply.players,
+                            capacity: 16,
                             address,
                         },
                     );
@@ -81,36 +86,78 @@ pub fn discover_cloud(address: &str) -> Result<Vec<RoomEntry>, String> {
     discover_cloud_with_password(address, "")
 }
 
+#[cfg(test)]
 pub fn discover_cloud_with_password(
     address: &str,
     password: &str,
 ) -> Result<Vec<RoomEntry>, String> {
+    inspect_club(address, password, &AtomicBool::new(false)).map(|snapshot| snapshot.rooms)
+}
+
+#[derive(Debug, Clone)]
+pub struct ClubSnapshot {
+    pub rooms: Vec<RoomEntry>,
+    pub latency_ms: Option<u32>,
+}
+
+pub fn inspect_club(
+    address: &str,
+    password: &str,
+    stop: &AtomicBool,
+) -> Result<ClubSnapshot, String> {
     let mut url = url_for(address, "", "", false)?;
     url.set_path("/lobby");
-    url.set_query(None);
-    let mut socket = open_socket_authorized(&url, &AtomicBool::new(false), password)?;
+    url.set_query(Some("probe=1"));
+    let mut socket = open_socket_authorized(&url, stop, password)?;
     #[derive(Deserialize)]
     struct Listing {
         rooms: Vec<RoomEntry>,
+        #[serde(default)]
+        probe: bool,
     }
     let message = socket.read().map_err(|e| e.to_string())?;
     let listing: Listing = serde_json::from_str(message.to_text().map_err(|e| e.to_string())?)
         .map_err(|_| "Server does not support the lobby".to_owned())?;
+    let latency_ms = if listing.probe && !stop.load(Ordering::Relaxed) {
+        match socket.get_mut() {
+            MaybeTlsStream::Plain(stream) => stream.set_read_timeout(Some(Duration::from_secs(3))),
+            MaybeTlsStream::NativeTls(stream) => stream
+                .get_mut()
+                .set_read_timeout(Some(Duration::from_secs(3))),
+            _ => Err(io::Error::other("Unsupported connection type")),
+        }
+        .map_err(|error| error.to_string())?;
+        let since = Instant::now();
+        if socket.send(Message::text("ping")).is_ok()
+            && matches!(socket.read(), Ok(Message::Text(text)) if text == "pong")
+        {
+            Some(since.elapsed().as_millis().clamp(1, u32::MAX as u128) as u32)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let _ = socket.close(None);
-    Ok(listing
+    let rooms = listing
         .rooms
         .into_iter()
         .filter(|r| {
             r.code.len() == 8
                 && r.code.bytes().all(|c| c.is_ascii_alphanumeric())
+                && r.capacity <= 16
                 && r.players <= 16
+                && (r.capacity == 0 || r.players <= r.capacity)
         })
         .take(100)
         .map(|mut r| {
             r.name = clean(&r.name, 24);
+            r.code.make_ascii_uppercase();
+            r.address.clear();
             r
         })
-        .collect())
+        .collect();
+    Ok(ClubSnapshot { rooms, latency_ms })
 }
 
 pub enum Mode {
@@ -227,6 +274,38 @@ pub fn normalize_server(address: &str) -> Result<String, String> {
     Ok(url.to_string().trim_end_matches('/').to_owned())
 }
 
+/// Invitations identify both the server and its room, and never carry credentials.
+pub fn room_invite(server: &str, room: &str) -> Result<String, String> {
+    let (server, room) = room_target(server, room)?;
+    Ok(format!("{server}/room/{room}"))
+}
+
+pub fn room_target(server: &str, invite: &str) -> Result<(String, String), String> {
+    let invite = invite.trim();
+    if invite.len() > 280 {
+        return Err("Room invitation is too long".into());
+    }
+    let (server, room) = if invite.contains("://") {
+        let mut url = Url::parse(invite).map_err(|_| "Invalid room invitation")?;
+        let room = url
+            .path()
+            .strip_prefix("/room/")
+            .ok_or("Use a room invitation ending in /room/ABCDEFGH")?
+            .to_owned();
+        url.set_path("");
+        // normalize_server rejects credentials, query strings, fragments and
+        // unsupported schemes, even when they arrive through a pasted invitation.
+        (normalize_server(url.as_str())?, room)
+    } else {
+        (normalize_server(server)?, invite.to_owned())
+    };
+    let room = room.to_ascii_uppercase();
+    if room.len() != 8 || !room.bytes().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("Enter an 8-character room code or a complete room invitation".into());
+    }
+    Ok((server, room))
+}
+
 fn config() -> WebSocketConfig {
     WebSocketConfig::default()
         .max_message_size(Some(MAX_WORLD_BYTES))
@@ -287,17 +366,15 @@ fn client(
                 .to_uppercase();
             let mut url = url_for(&server, &room, name, true)?;
             url.query_pairs_mut().append_pair("room_name", &room_name);
-            (url, format!("{room_name} / {room}"), room)
+            let invite = room_invite(&server, &room)?;
+            (url, format!("{room_name} / {room}"), invite)
         }
         Mode::JoinCloud { server, room } => {
-            let room = room.trim().to_uppercase();
-            if room.len() != 8 || !room.bytes().all(|c| c.is_ascii_alphanumeric()) {
-                return Err("Enter an 8-character room code".into());
-            }
+            let (server, room) = room_target(&server, &room)?;
             (
                 url_for(&server, &room, name, false)?,
                 format!("ROOM / {room}"),
-                room,
+                room_invite(&server, &room)?,
             )
         }
     };
@@ -616,6 +693,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn club_refresh_measures_a_round_trip_without_joining_and_reports_actual_capacity() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("ws://{}", listener.local_addr().unwrap());
+        let server = yapshire_server::Server::new(
+            yapshire_server::Config {
+                max_players: 3,
+                ..Default::default()
+            },
+            World::bundled(),
+            "private-club",
+        )
+        .unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread = server.clone().spawn(listener, stop.clone()).unwrap();
+        let snapshot = inspect_club(&address, "private-club", &AtomicBool::new(false)).unwrap();
+        assert_eq!(snapshot.rooms.len(), 1);
+        assert_eq!(snapshot.rooms[0].capacity, 3);
+        assert_eq!(snapshot.rooms[0].players, 0);
+        assert!(snapshot.latency_ms.is_some_and(|ms| ms > 0));
+        assert_eq!(server.player_count("MAIN0001"), 0);
+        assert!(inspect_club(&address, "wrong-password", &AtomicBool::new(false)).is_err());
+        stop.store(true, Ordering::Relaxed);
+        thread.join().unwrap();
+    }
+
+    #[test]
+    fn old_clubs_still_list_rooms_without_inventing_ping_or_capacity() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("ws://{}", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut socket = tungstenite::accept(stream).unwrap();
+            socket.send(Message::text(r#"{"rooms":[{"code":"LEGACY01","name":"Old town","players":2,"address":"wss://redirect.example"}]}"#)).unwrap();
+            socket.close(None).unwrap();
+        });
+        let snapshot = inspect_club(&address, "", &AtomicBool::new(false)).unwrap();
+        assert_eq!(snapshot.rooms[0].players, 2);
+        assert_eq!(snapshot.rooms[0].capacity, 0);
+        assert!(snapshot.rooms[0].address.is_empty());
+        assert!(snapshot.latency_ms.is_none());
+        server.join().unwrap();
+    }
+
+    #[test]
     fn stalled_tls_returns_an_error_instead_of_panicking() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
@@ -700,7 +821,8 @@ mod tests {
             },
             "Rust Host".into(),
         );
-        let (id, code) = welcome(&a);
+        let (id, invite) = welcome(&a);
+        let (_, code) = room_target(&server, &invite).unwrap();
         let listing = discover_cloud(&server).unwrap();
         assert!(
             listing
@@ -710,7 +832,7 @@ mod tests {
         let b = start(
             Mode::JoinCloud {
                 server: server.clone(),
-                room: code,
+                room: invite,
             },
             "Rust Guest".into(),
         );
@@ -739,6 +861,34 @@ mod tests {
         );
         drop(a);
         assert!(matches!(next(&b, "left"), ServerMessage::Left { id: left } if left == id));
+    }
+
+    #[test]
+    fn invitations_round_trip_the_destination_without_credentials() {
+        let invite = room_invite("https://friends.example:8443/", "niannian").unwrap();
+        assert_eq!(invite, "wss://friends.example:8443/room/NIANNIAN");
+        assert_eq!(
+            room_target("ws://wrong.example", &invite).unwrap(),
+            ("wss://friends.example:8443".into(), "NIANNIAN".into())
+        );
+        assert_eq!(
+            room_target("http://[::1]:4761", "abcdefgh").unwrap(),
+            ("ws://[::1]:4761".into(), "ABCDEFGH".into())
+        );
+        for invite in [
+            "wss://user:secret@friends.example/room/NIANNIAN",
+            "wss://friends.example/room/NIANNIAN?password=secret",
+            "wss://friends.example/room/NIANNIAN#create=1",
+            "wss://friends.example/room/NIANNIAN/extra",
+            "file:///room/NIANNIAN",
+            "wss://friends.example/room/短房间码",
+            "NIANNIAN?create=1",
+        ] {
+            assert!(
+                room_target(DEFAULT_SERVER.trim(), invite).is_err(),
+                "{invite}"
+            );
+        }
     }
 
     #[test]

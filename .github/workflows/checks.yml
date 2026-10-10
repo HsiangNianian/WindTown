@@ -41,15 +41,24 @@ jobs:
           /tmp/actionlint/actionlint -color
       - name: Install Worker dependencies
         run: npm ci --prefix server
-      - name: Test Worker rooms and lobby
+      - name: Test Rust server through Cloudflare gateway and compatibility address
         run: |
           cd server
           npm run dev > /tmp/yapshire-worker.log 2>&1 &
           worker_pid=$!
           trap 'kill "$worker_pid" || true; cat /tmp/yapshire-worker.log' EXIT
-          for _ in {1..30}; do
-            if curl -fsS http://127.0.0.1:8787/health; then break; fi
-            sleep 1
+          # A cold runner must build the Rust container before the gateways can start.
+          ready=false
+          for _ in {1..180}; do
+            if curl -fsS --max-time 5 http://127.0.0.1:8787/health; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then exit 1; fi
+            sleep 2
           done
+          if [ "$ready" != true ]; then exit 1; fi
           npm test
+          CLUB_URL=http://127.0.0.1:8787 CLUB_CAPACITY_CHECK=1 npm run test:club
           npx wrangler deploy --dry-run
+          npm run deploy:club -- --dry-run

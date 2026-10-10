@@ -3,10 +3,16 @@
 [简体中文](SELF_HOSTING.zh-CN.md) · [README](../README.md)
 
 `yapshire-server` runs without a game window, GPU, Node.js or Cloudflare account.
-Use it on a home computer, VPS, or Docker host. Players choose its address in
-**Host a room → Online server** or **Join server**. Both screens share the address,
-which is saved after a connection attempt. **Use official server** restores the
-built-in service and clears the current password.
+Use it on a home computer, VPS, or Docker host. In the current source client,
+players choose **Online lobby → Add Club**, enter its address and optionally give
+it a personal alias. Each saved Club automatically lists its rooms, occupancy and
+measured latency. Select a Club to create a room there; editing or removing the
+subscription does not rename or stop the actual server. Previously released
+v0.5.2 clients use the single server-address field instead.
+
+The official **Yapshire Town (Yapshire 小镇)** uses
+`wss://yap-server.mmstudio.games`; `wss://yap.meaninglessmeaning.studio` reaches
+the same town. Enter either address in an existing v0.5.2+ client.
 
 ## Start with the standalone download
 
@@ -29,9 +35,9 @@ executable runs its embedded original town, so it also works on its own.
 
 The default town is **My Yapshire town**, code **MAIN0001**, listening on
 **TCP 4761**. On the same computer, enter `ws://127.0.0.1:4761` in the game's
-**Join server** screen, then choose that town from the lobby. On your local
+**Online lobby → Add Club** form, then choose that town from the lobby. On your local
 network, use the server computer's LAN address, such as `ws://192.168.1.10:4761`.
-The dedicated server uses **Join server**; automatic **Join LAN** discovery is
+The dedicated server uses **Online lobby**; automatic **Join LAN** discovery is
 for rooms hosted inside the game.
 
 Ctrl+C stops the server and disconnects its players. The configured town remains
@@ -115,12 +121,12 @@ The supported format is deliberately small:
   not move these anchors; see [Tilemaps](DEVELOPMENT.md#tilemaps).
 
 LAN hosts publish their saved local editor maps through the same server library.
-The existing public Cloudflare Worker uses the bundled original map; clients
-temporarily switch to that map when joining it. Use **v0.5.2 or later** clients
+The official Cloudflare deployment runs this same Rust server with the bundled
+maps. Use **v0.5.2 or later** clients
 for the dedicated server and LAN map handshake (protocol 2). Earlier Windows
 v0.5.0/v0.5.1 builds used a different tileset fingerprint due to CRLF line endings;
-update them before playing with Linux/macOS users. The v0.5 client
-also remains compatible with the existing Worker protocol.
+update them before playing with Linux/macOS users. The old official Worker
+address forwards to the Rust server, so pre-v0.5 clients must upgrade.
 
 ## Configuration
 
@@ -153,7 +159,9 @@ available; `--init` is used by itself.
 Set **YAPSHIRE_SERVER_PASSWORD** to an 8–128 byte password in the server's
 environment. Players enter it in the masked **Server password** field. It is
 kept only for that game process, never saved in settings or copied with an invite.
-Changing the address clears it. Share passwords separately from room codes.
+Changing an address clears its password. Saved Clubs retain their own passwords
+only in memory until the game exits; switching Clubs never copies one server's
+password to another. Share passwords separately from room codes.
 
 In Bash or zsh, read the password without echoing it or putting it in history:
 
@@ -178,7 +186,9 @@ a credential. It is never placed in a URL. Use TLS for public connections.
 Permit the chosen TCP port in the server firewall. A home connection also needs
 router port forwarding; carrier-grade NAT may require a VPS or a VPN with peer
 connectivity. Friends need your server address **and** a room code, plus the
-password if enabled. The **Copy invite** button copies the room code only.
+password if enabled. **Copy invite** copies a complete server-and-room URL;
+paste it into **Room code or invitation** to fill both fields. The password
+must be shared separately. Previously released clients copy only the room code.
 
 For a public domain, bind the server to `127.0.0.1:4761` and terminate TLS at your
 reverse proxy. For example, a [Caddy reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)

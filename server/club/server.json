@@ -1,0 +1,11 @@
+{
+  "bind": "0.0.0.0:4761",
+  "name": "Yapshire 小镇",
+  "room_code": "NIANNIAN",
+  "maps_dir": null,
+  "max_players": 16,
+  "max_rooms": 2,
+  "max_connections_per_ip": 40,
+  "allow_room_creation": true,
+  "allowed_origins": []
+}

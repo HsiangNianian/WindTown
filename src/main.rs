@@ -1,5 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod clubs;
+#[cfg(debug_assertions)]
+mod clubs_smoke;
+mod clubs_ui;
 mod coast;
 mod editor;
 #[cfg(debug_assertions)]
@@ -61,10 +65,15 @@ fn main() {
     let (settings, i18n) = settings::Settings::load();
     let mut menu = ui::Menu::default();
     menu.server = settings.server().into();
+    let clubs = clubs::Browser::new(settings.clubs(), settings.server());
+    if let Some(club) = clubs.selected() {
+        menu.server = club.saved.server.clone();
+    }
     let mut app = App::new();
     app.insert_resource(maps)
         .insert_resource(editor)
         .insert_resource(settings)
+        .insert_resource(clubs)
         .insert_resource(i18n)
         .insert_resource(ClearColor(Color::srgb_u8(35, 56, 57)))
         .init_resource::<Session>()
@@ -97,13 +106,18 @@ fn main() {
                 }),
         )
         .add_plugins(bevy_ecs_tilemap::TilemapPlugin)
-        .add_systems(Startup, (game::setup, coast::setup).chain())
+        .add_systems(
+            Startup,
+            (game::setup, coast::setup, settings::setup).chain(),
+        )
         .add_systems(
             Update,
             (
                 (settings::update, ui::buttons).chain(),
                 ui::discover,
                 ui::keyboard,
+                clubs::update,
+                clubs_ui::scroll,
                 editor::update,
                 connect_requests,
                 network_events,
@@ -136,6 +150,8 @@ fn main() {
         .init_resource::<editor_smoke::Check>()
         .init_resource::<i18n_smoke::Check>()
         .init_resource::<fishing_smoke::Check>()
+        .init_resource::<clubs_smoke::Check>()
+        .add_systems(Update, clubs_smoke::drive.before(ui::buttons))
         .add_systems(Update, fishing_smoke::drive.before(ui::buttons))
         .add_systems(Update, smoke::drive.before(ui::buttons))
         .add_systems(Update, editor_smoke::drive.before(ui::buttons))

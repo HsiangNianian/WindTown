@@ -18,7 +18,7 @@ bevy = { version = "=0.18.1", default-features = false, features = [
   "std", "async_executor", "multi_threaded", "bevy_asset", "bevy_log",
   "bevy_winit", "bevy_window", "bevy_render", "bevy_core_pipeline",
   "bevy_sprite", "bevy_sprite_render", "bevy_text", "bevy_ui", "bevy_ui_render",
-  "png", "x11", "wayland", "keyboard", "mouse"
+  "png", "x11", "wayland", "keyboard", "mouse", "touch"
 ] }
 bevy_ecs_tilemap = "=0.18.1"
 serde = { version = "1", features = ["derive"] }

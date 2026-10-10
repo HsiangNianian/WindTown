@@ -18,6 +18,8 @@ pub struct RoomEntry {
     pub name: String,
     pub players: usize,
     #[serde(default)]
+    pub capacity: usize,
+    #[serde(default)]
     pub address: String,
 }
 

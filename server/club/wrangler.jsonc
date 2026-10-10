@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "niannian-club",
+  "account_id": "9418702dcbab1a8777f664d07852a04d",
+  "main": "index.js",
+  "compatibility_date": "2026-10-10",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "yap-server.mmstudio.games", "custom_domain": true },
+    { "pattern": "yap.meaninglessmeaning.studio", "custom_domain": true }
+  ],
+  "containers": [
+    {
+      "class_name": "Club",
+      "scheduling_policy": "default",
+      "image": "./Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "lite",
+      "max_instances": 1,
+      "rollout_step_percentage": 100
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "CLUB", "class_name": "Club" }]
+  },
+  "exports": {
+    "Club": { "type": "durable-object", "storage": "sqlite" }
+  },
+  "limits": { "cpu_ms": 50 },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 0.1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
+}

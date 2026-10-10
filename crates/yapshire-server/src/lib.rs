@@ -50,8 +50,13 @@ struct Room {
 }
 struct Peer {
     player: Player,
-    send: mpsc::Sender<ServerMessage>,
+    send: mpsc::Sender<Outgoing>,
+    movements: Arc<Mutex<HashMap<u32, Player>>>,
     stop: watch::Sender<bool>,
+}
+enum Outgoing {
+    Message(ServerMessage),
+    Movement(u32),
 }
 type Failure = (StatusCode, &'static str);
 
@@ -240,6 +245,7 @@ impl Server {
                 code: code.clone(),
                 name: room.name.clone(),
                 players: room.peers.len(),
+                capacity: self.0.config.max_players,
                 address: String::new(),
             })
             .collect();
@@ -295,21 +301,40 @@ async fn rooms(
     server.authorize(addr.ip(), &headers)?;
     Ok(Json(serde_json::json!({"rooms": server.listing()})))
 }
+#[derive(Default, Deserialize)]
+struct LobbyQuery {
+    #[serde(default)]
+    probe: u8,
+}
+
 async fn lobby(
     State(server): State<Server>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    Query(query): Query<LobbyQuery>,
     headers: HeaderMap,
     ws: WebSocketUpgrade,
 ) -> Result<Response, Failure> {
     server.authorize(addr.ip(), &headers)?;
     let connection = server.reserve(addr.ip())?;
-    let listing = serde_json::json!({"rooms": server.listing()}).to_string();
+    let probe = query.probe == 1;
+    let listing = serde_json::json!({"rooms": server.listing(), "probe": probe}).to_string();
     Ok(ws
         .max_message_size(2048)
         .max_frame_size(2048)
         .on_upgrade(move |mut socket| async move {
             let _connection = connection;
             let _ = send(&mut socket, Message::Text(listing.into())).await;
+            // A single, bounded round trip measures the game's transport without
+            // joining a room, sending maps or changing any player counts.
+            if probe {
+                if let Ok(Some(Ok(Message::Text(text)))) =
+                    tokio::time::timeout(Duration::from_secs(3), socket.recv()).await
+                {
+                    if text == "ping" {
+                        let _ = send(&mut socket, Message::Text("pong".into())).await;
+                    }
+                }
+            }
             close(&mut socket, 1000, "Lobby listed").await;
         }))
 }
@@ -387,7 +412,22 @@ async fn room(
 
 fn broadcast(room: &Room, message: ServerMessage, except: Option<u32>) {
     for (id, peer) in &room.peers {
-        if Some(*id) != except && peer.send.try_send(message.clone()).is_err() {
+        if Some(*id) == except {
+            continue;
+        }
+        let outgoing = match &message {
+            ServerMessage::Moved { player } => {
+                // Keep one queued position per player. A brief transport stall
+                // must not fill the reliable queue with obsolete movement frames.
+                let mut pending = peer.movements.lock().unwrap();
+                if pending.insert(player.id, player.clone()).is_some() {
+                    continue;
+                }
+                Outgoing::Movement(player.id)
+            }
+            _ => Outgoing::Message(message.clone()),
+        };
+        if peer.send.try_send(outgoing).is_err() {
             let _ = peer.stop.send(true);
         }
     }
@@ -452,6 +492,7 @@ async fn session(
         return;
     }
     let (tx, mut rx) = mpsc::channel(128);
+    let movements = Arc::new(Mutex::new(HashMap::new()));
     let (stop, mut stopped) = watch::channel(false);
     let joined = {
         let mut rooms = server.0.rooms.lock().unwrap();
@@ -507,13 +548,14 @@ async fn session(
                         Peer {
                             player,
                             send: tx.clone(),
+                            movements: movements.clone(),
                             stop,
                         },
                     );
-                    let _ = tx.try_send(ServerMessage::Welcome {
+                    let _ = tx.try_send(Outgoing::Message(ServerMessage::Welcome {
                         you: id,
                         players: room.peers.values().map(|p| p.player.clone()).collect(),
-                    });
+                    }));
                     Participant {
                         server: server.clone(),
                         code: code.clone(),
@@ -544,6 +586,13 @@ async fn session(
                 if last_seen.elapsed() > Duration::from_secs(45) { close_code = 1001; reason = "Heartbeat timed out"; break; }
             }
             Some(message) = rx.recv() => {
+                let message = match message {
+                    Outgoing::Message(message) => message,
+                    Outgoing::Movement(id) => {
+                        let Some(player) = movements.lock().unwrap().remove(&id) else { continue; };
+                        ServerMessage::Moved { player }
+                    }
+                };
                 if !send(&mut socket, Message::Text(serde_json::to_string(&message).unwrap().into())).await { break; }
             }
             message = socket.recv() => {
@@ -587,4 +636,89 @@ async fn session(
     }
     drop(participant);
     close(&mut socket, close_code, reason).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stalled_movement_keeps_the_latest_position_and_preserves_reliable_events() {
+        let player = Player {
+            id: 7,
+            name: "Walker".into(),
+            x: 0.0,
+            y: 0.0,
+            moving: true,
+            facing: false,
+            indoors: false,
+            fishing: false,
+        };
+        let (send, mut receive) = mpsc::channel(4);
+        let (stop, stopped) = watch::channel(false);
+        let movements = Arc::new(Mutex::new(HashMap::new()));
+        let room = Room {
+            name: "Test".into(),
+            persistent: false,
+            peers: HashMap::from([(
+                42,
+                Peer {
+                    player: Player {
+                        id: 42,
+                        ..player.clone()
+                    },
+                    send,
+                    movements: movements.clone(),
+                    stop,
+                },
+            )]),
+        };
+        broadcast(
+            &room,
+            ServerMessage::Joined {
+                player: player.clone(),
+            },
+            None,
+        );
+        // A receiver stalls while many updates arrive for the same player.
+        for x in 0..1000 {
+            broadcast(
+                &room,
+                ServerMessage::Moved {
+                    player: Player {
+                        x: x as f32,
+                        ..player.clone()
+                    },
+                },
+                None,
+            );
+        }
+        broadcast(
+            &room,
+            ServerMessage::Chat {
+                id: 7,
+                text: "Hello".into(),
+            },
+            None,
+        );
+        broadcast(&room, ServerMessage::Left { id: 7 }, None);
+        assert!(
+            !*stopped.borrow(),
+            "obsolete movement must not evict a player"
+        );
+        assert!(matches!(
+            receive.try_recv().unwrap(),
+            Outgoing::Message(ServerMessage::Joined { .. })
+        ));
+        assert!(matches!(receive.try_recv().unwrap(), Outgoing::Movement(7)));
+        assert_eq!(movements.lock().unwrap().remove(&7).unwrap().x, 999.0);
+        assert!(
+            matches!(receive.try_recv().unwrap(), Outgoing::Message(ServerMessage::Chat { text, .. }) if text == "Hello")
+        );
+        assert!(matches!(
+            receive.try_recv().unwrap(),
+            Outgoing::Message(ServerMessage::Left { id: 7 })
+        ));
+        assert!(receive.try_recv().is_err());
+    }
 }

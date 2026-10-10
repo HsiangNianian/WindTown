@@ -47,6 +47,8 @@ pub fn drive(
     mut smoke: ResMut<Smoke>,
     time: Res<Time>,
     mut menu: ResMut<Menu>,
+    mut clubs: ResMut<crate::clubs::Browser>,
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
     session: Res<Session>,
     maps: Res<crate::maps::Maps>,
     actors: Query<&Actor>,
@@ -59,9 +61,11 @@ pub fn drive(
         || smoke.mode.starts_with("fishing")
         || smoke.mode.starts_with("editor")
         || smoke.mode.starts_with("i18n")
+        || smoke.mode.starts_with("clubs")
     {
         return;
     }
+    mouse.release(MouseButton::Left);
     let now = time.elapsed_secs();
     assert!(
         now < 90.0,
@@ -144,6 +148,10 @@ pub fn drive(
             smoke.local_world = Some(maps.world().unwrap());
             if cloud {
                 if let Ok(server) = std::env::var("YAPSHIRE_TEST_SERVER") {
+                    *clubs = crate::clubs::Browser::new(
+                        vec![crate::clubs::SavedClub::new("Smoke Club", &server).unwrap()],
+                        &server,
+                    );
                     menu.server = server;
                 }
                 menu.server_password = std::env::var("YAPSHIRE_TEST_PASSWORD").unwrap_or_default();
@@ -301,10 +309,16 @@ pub fn drive(
                 (Action::Hosting(a), Action::Hosting(b)) => *a == b,
                 (Action::Connect, Action::Connect) => true,
                 (Action::JoinRoom(a), Action::JoinRoom(b)) => *a == b,
+                (Action::Club(crate::clubs::Action::Join(_, code)), Action::JoinRoom(index)) => {
+                    menu.rooms
+                        .get(index)
+                        .is_some_and(|room| room.code.as_bytes() == code)
+                }
                 _ => false,
             };
             if matches {
                 *interaction = Interaction::Pressed;
+                mouse.press(MouseButton::Left);
                 found = true;
                 break;
             }

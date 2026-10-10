@@ -4,7 +4,10 @@ use crate::{
     icons::Icon,
     ui::{self, CREAM, GREEN, INK, MUTED, Menu, Page},
 };
-use bevy::{prelude::*, ui::FocusPolicy, window::WindowCloseRequested};
+use bevy::{
+    a11y::AccessibilityNode, camera::visibility::RenderLayers, prelude::*, ui::FocusPolicy,
+    window::WindowCloseRequested,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     io,
@@ -17,6 +20,7 @@ struct Preferences {
     version: u32,
     language: Language,
     server: String,
+    clubs: Option<Vec<crate::clubs::SavedClub>>,
     #[serde(flatten)]
     extra: serde_json::Map<String, serde_json::Value>,
 }
@@ -27,6 +31,7 @@ impl Default for Preferences {
             version: 1,
             language: Language::English,
             server: crate::network::DEFAULT_SERVER.trim().into(),
+            clubs: None,
             extra: Default::default(),
         }
     }
@@ -69,6 +74,25 @@ impl Default for Settings {
 }
 
 impl Settings {
+    pub fn clubs(&self) -> Vec<crate::clubs::SavedClub> {
+        crate::clubs::restore(self.preferences.clubs.clone(), &self.preferences.server)
+    }
+
+    pub fn save_clubs(&mut self, clubs: Vec<crate::clubs::SavedClub>) -> Result<(), String> {
+        let previous = self.preferences.clubs.replace(clubs);
+        let result = self.path.as_ref().map_err(Clone::clone).and_then(|path| {
+            serde_json::to_vec_pretty(&self.preferences)
+                .map_err(|error| error.to_string())
+                .and_then(|bytes| {
+                    crate::paths::atomic_write(path, &bytes).map_err(|error| error.to_string())
+                })
+        });
+        if result.is_err() {
+            self.preferences.clubs = previous;
+        }
+        result
+    }
+
     pub fn server(&self) -> &str {
         &self.preferences.server
     }
@@ -93,7 +117,7 @@ impl Settings {
         )
     }
 
-    fn from_path(path: Result<PathBuf, String>) -> (Self, I18n) {
+    pub(crate) fn from_path(path: Result<PathBuf, String>) -> (Self, I18n) {
         let loaded = path
             .as_ref()
             .map_err(Clone::clone)
@@ -107,6 +131,13 @@ impl Settings {
         };
         preferences.server = crate::network::normalize_server(&preferences.server)
             .unwrap_or_else(|_| crate::network::DEFAULT_SERVER.trim().into());
+        if crate::network::LEGACY_SERVERS.contains(&preferences.server.as_str()) {
+            preferences.server = crate::network::DEFAULT_SERVER.trim().into();
+        }
+        preferences.clubs = Some(crate::clubs::restore(
+            preferences.clubs.take(),
+            &preferences.server,
+        ));
         let i18n = I18n {
             language: preferences.language,
         };
@@ -156,16 +187,45 @@ pub(crate) enum Action {
 #[derive(Component)]
 pub(crate) struct Root;
 
+#[derive(Component)]
+pub(crate) struct CornerCamera;
+
+pub(crate) fn setup(mut commands: Commands) {
+    // Keep the shortcut at the window corner even when the pixel canvas has
+    // centered borders on a phone-shaped or ultrawide display.
+    commands.spawn((
+        CornerCamera,
+        Camera2d,
+        Camera {
+            order: 1,
+            clear_color: ClearColorConfig::None,
+            ..default()
+        },
+        Msaa::Off,
+        RenderLayers::none(),
+    ));
+}
+
 pub(crate) fn update(
     mut settings: ResMut<Settings>,
     mut i18n: ResMut<I18n>,
     keys: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
-    mut buttons: Query<(&Interaction, &Action, &mut BackgroundColor), Changed<Interaction>>,
+    touches: Res<Touches>,
+    mut buttons: Query<
+        (
+            &Interaction,
+            &Action,
+            &mut BackgroundColor,
+            Option<&mut AccessibilityNode>,
+        ),
+        Changed<Interaction>,
+    >,
     mut close: MessageReader<WindowCloseRequested>,
 ) {
     // A held mouse must not click through the panel after it closes.
-    settings.changed_this_frame &= mouse.pressed(MouseButton::Left);
+    settings.changed_this_frame &=
+        mouse.pressed(MouseButton::Left) || touches.iter().next().is_some();
     if settings.open && (keys.just_pressed(KeyCode::Escape) || close.read().next().is_some()) {
         settings.open = false;
         settings.changed_this_frame = true;
@@ -173,7 +233,12 @@ pub(crate) fn update(
         return;
     }
     close.clear();
-    for (interaction, action, mut background) in &mut buttons {
+    for (interaction, action, mut background, accessible) in &mut buttons {
+        if *action == Action::Open {
+            if let Some(mut accessible) = accessible {
+                accessible.set_label(tr("settings.button").render(&i18n));
+            }
+        }
         let selected = matches!(action, Action::Language(language) if *language == i18n.language);
         *background = BackgroundColor(if selected {
             GREEN
@@ -182,7 +247,9 @@ pub(crate) fn update(
         } else {
             Color::srgb_u8(229, 220, 189)
         });
-        if *interaction != Interaction::Pressed || !mouse.just_pressed(MouseButton::Left) {
+        if *interaction != Interaction::Pressed
+            || !(mouse.just_pressed(MouseButton::Left) || touches.any_just_pressed())
+        {
             continue;
         }
         match *action {
@@ -223,13 +290,14 @@ fn button(
         commands.spawn((
             Icon::Settings.image(art),
             Node {
-                width: px(16),
-                height: px(16),
+                width: percent(66.6667),
+                height: percent(66.6667),
                 ..default()
             },
             FocusPolicy::Pass,
             ChildOf(entity),
         ));
+        return entity;
     }
     ui::label(
         commands,
@@ -242,23 +310,32 @@ fn button(
     entity
 }
 
+/// Reserve the corner in game coordinates while keeping a 48-point tap target
+/// on smaller windows. The main canvas may scale down; this control must not.
+pub(crate) fn corner_space(scale: f32) -> f32 {
+    72.0 / scale.clamp(0.1, 1.0)
+}
+
 pub(crate) fn render(
     mut commands: Commands,
     mut settings: ResMut<Settings>,
     i18n: Res<I18n>,
     menu: Res<Menu>,
     art: Res<Art>,
+    scale: Res<UiScale>,
+    corner_camera: Single<Entity, With<CornerCamera>>,
     roots: Query<Entity, With<Root>>,
-    mut last_page: Local<Option<Page>>,
+    mut last_layout: Local<Option<(Page, u32)>>,
 ) {
-    if !settings.dirty && *last_page == Some(menu.page) {
+    let layout = (menu.page, scale.0.to_bits());
+    if !settings.dirty && *last_layout == Some(layout) {
         return;
     }
     for root in &roots {
         commands.entity(root).despawn();
     }
     settings.dirty = false;
-    *last_page = Some(menu.page);
+    *last_layout = Some(layout);
     let root = commands
         .spawn((
             Root,
@@ -273,11 +350,8 @@ pub(crate) fn render(
         ))
         .id();
     if !settings.open {
-        let (bottom, height) = if menu.page == Page::Editor {
-            (42, 30)
-        } else {
-            (80, 42)
-        };
+        commands.entity(root).insert(UiTargetCamera(*corner_camera));
+        let unit = 1.0 / scale.0.clamp(0.1, 1.0);
         button(
             &mut commands,
             root,
@@ -287,14 +361,13 @@ pub(crate) fn render(
             false,
             Node {
                 position_type: PositionType::Absolute,
-                right: px(36),
-                bottom: px(bottom),
-                width: px(156),
-                height: px(height),
+                right: px(12.0 * unit),
+                top: px(12.0 * unit),
+                width: px(48.0 * unit),
+                height: px(48.0 * unit),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
-                column_gap: px(8),
-                border: UiRect::all(px(2)),
+                border: UiRect::all(px(2.0 * unit)),
                 ..default()
             },
         );
@@ -434,6 +507,7 @@ mod tests {
             .init_resource::<I18n>()
             .init_resource::<ButtonInput<KeyCode>>()
             .init_resource::<ButtonInput<MouseButton>>()
+            .init_resource::<Touches>()
             .add_message::<WindowCloseRequested>()
             .add_systems(Update, update);
         app.world_mut().resource_mut::<Settings>().open = true;
@@ -455,6 +529,39 @@ mod tests {
             .release(MouseButton::Left);
         app.update();
         assert!(!app.world().resource::<Settings>().blocks_input());
+    }
+
+    #[test]
+    fn retired_official_addresses_migrate_but_custom_servers_are_preserved() {
+        let dir =
+            std::env::temp_dir().join(format!("yapshire-migration-{}", rand::random::<u64>()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+        for (server, expected) in [
+            (
+                "wss://yapshire-multiplayer.opensource-941.workers.dev",
+                crate::network::DEFAULT_SERVER.trim(),
+            ),
+            (
+                "https://niannian-club.opensource-941.workers.dev/",
+                crate::network::DEFAULT_SERVER.trim(),
+            ),
+            (
+                "wss://yap.meaninglessmeaning.studio",
+                "wss://yap.meaninglessmeaning.studio",
+            ),
+            ("wss://friends.example", "wss://friends.example"),
+        ] {
+            std::fs::write(
+                &path,
+                serde_json::json!({"server": server, "volume": 0.8}).to_string(),
+            )
+            .unwrap();
+            let (settings, _) = Settings::from_path(Ok(path.clone()));
+            assert_eq!(settings.server(), expected);
+            assert_eq!(settings.preferences.extra["volume"], 0.8);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

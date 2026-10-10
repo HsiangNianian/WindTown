@@ -1,1 +1,1 @@
-wss://yapshire-multiplayer.opensource-941.workers.dev
+wss://yap-server.mmstudio.games

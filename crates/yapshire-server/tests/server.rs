@@ -123,6 +123,40 @@ fn joined(socket: &mut WebSocket<TcpStream>) -> u32 {
 }
 
 #[test]
+fn lobby_probe_is_authenticated_reports_capacity_and_never_joins_a_room() {
+    let host = Running::new(
+        Config {
+            max_players: 3,
+            ..Config::default()
+        },
+        World::bundled(),
+        "club-password",
+    );
+    host.rejected("/lobby?probe=1", "", None, 401);
+    host.rejected(
+        "/lobby?probe=1",
+        "club-password",
+        Some("https://untrusted.example"),
+        403,
+    );
+    let mut socket = host.open("/lobby?probe=1", "club-password");
+    let listing: serde_json::Value =
+        serde_json::from_str(socket.read().unwrap().to_text().unwrap()).unwrap();
+    assert_eq!(listing["probe"], true);
+    assert_eq!(listing["rooms"][0]["capacity"], 3);
+    assert_eq!(listing["rooms"][0]["players"], 0);
+    socket.send(Message::text("ping")).unwrap();
+    assert_eq!(socket.read().unwrap().to_text().unwrap(), "pong");
+    assert!(matches!(socket.read().unwrap(), Message::Close(_)));
+    assert_eq!(host.server.player_count("MAIN0001"), 0);
+    let mut old_client = host.open("/lobby", "club-password");
+    let listing: serde_json::Value =
+        serde_json::from_str(old_client.read().unwrap().to_text().unwrap()).unwrap();
+    assert_eq!(listing["probe"], false);
+    assert!(matches!(old_client.read().unwrap(), Message::Close(_)));
+}
+
+#[test]
 fn two_clients_share_edited_tiled_maps_and_server_assigned_identities() {
     let mut world = World::bundled();
     world.town.layers[4].data[500] = 0x8000_005d;

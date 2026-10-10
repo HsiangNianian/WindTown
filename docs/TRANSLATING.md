@@ -11,7 +11,8 @@ Each language has independent JSON files under `assets/locales/`:
 | File | Content |
 | --- | --- |
 | `common.json` | Shared actions and connection states |
-| `menu.json` | Menus, lobbies, chat controls and connection notices |
+| `menu.json` | Menus, chat controls and connection notices |
+| `clubs.json` | Saved Clubs, room directory, latency and subscription notices |
 | `settings.json` | Settings and preference notices |
 | `editor.json` | Map tools, tooltips, layer names and save notices |
 | `fishing.json` | Items, shop, fishing controls and results |
@@ -102,3 +103,8 @@ YAPSHIRE_SMOKE=i18n-reload ./target/debug/yapshire
 Screenshots are written to `artifacts/i18n-*.png`. The check covers live switching,
 literal player text, unsaved editor drafts, modal input isolation, translated
 inventory/shop views and preference persistence across a restart.
+
+Use `YAPSHIRE_SMOKE=i18n-compact` with another fresh set of folders to repeat it
+at 844 × 390. This also taps the top-right gear through a real Bevy touch event
+and checks its 48-point minimum hit area. This is a desktop window simulation of
+a phone-sized display, not an Android/iOS device test.

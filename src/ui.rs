@@ -28,6 +28,9 @@ pub enum Field {
     Room,
     RoomName,
     Port,
+    ClubAlias,
+    ClubServer,
+    ClubPassword,
 }
 
 #[derive(Resource)]
@@ -53,6 +56,11 @@ pub struct Menu {
     scan: Option<Mutex<mpsc::Receiver<Result<Vec<network::RoomEntry>, Message>>>>,
     lobby_error: Message,
     room_page: usize,
+    pub(crate) club_editor: Option<Option<u64>>,
+    pub(crate) club_alias: String,
+    pub(crate) club_server: String,
+    pub(crate) club_password: String,
+    pub(crate) club_submit: bool,
 }
 
 impl Default for Menu {
@@ -79,6 +87,11 @@ impl Default for Menu {
             scan: None,
             lobby_error: Message::default(),
             room_page: 0,
+            club_editor: None,
+            club_alias: String::new(),
+            club_server: String::new(),
+            club_password: String::new(),
+            club_submit: false,
         }
     }
 }
@@ -93,6 +106,9 @@ impl Menu {
             Field::Room => &self.room,
             Field::RoomName => &self.room_name,
             Field::Port => &self.port,
+            Field::ClubAlias => &self.club_alias,
+            Field::ClubServer => &self.club_server,
+            Field::ClubPassword => &self.club_password,
         }
     }
     fn field_mut(&mut self, field: Field) -> &mut String {
@@ -113,6 +129,12 @@ impl Menu {
             Field::Room => &mut self.room,
             Field::RoomName => &mut self.room_name,
             Field::Port => &mut self.port,
+            Field::ClubAlias => &mut self.club_alias,
+            Field::ClubServer => {
+                self.club_password.clear();
+                &mut self.club_server
+            }
+            Field::ClubPassword => &mut self.club_password,
         }
     }
     fn fields(&self) -> Vec<Field> {
@@ -123,7 +145,10 @@ impl Menu {
             }
             Page::Host => vec![Field::Port],
             Page::Lan => vec![Field::Address],
-            Page::Cloud => vec![Field::Server, Field::ServerPassword, Field::Room],
+            Page::Cloud if self.club_editor.is_some() => {
+                vec![Field::ClubAlias, Field::ClubServer, Field::ClubPassword]
+            }
+            Page::Cloud => vec![Field::ServerPassword, Field::Room],
             Page::Playing | Page::Editor => vec![],
         }
     }
@@ -136,7 +161,9 @@ impl Menu {
         self.rooms.clear();
         self.scan = None;
         self.room_page = 0;
-        if matches!(page, Page::Lan | Page::Cloud) {
+        self.club_editor = None;
+        self.club_password.clear();
+        if page == Page::Lan {
             self.refresh_rooms();
         }
     }
@@ -144,16 +171,9 @@ impl Menu {
         if self.scan.is_some() {
             return;
         }
-        let cloud = self.page == Page::Cloud;
-        let address = self.server.clone();
-        let password = self.server_password.clone();
         let (send, receive) = mpsc::channel();
         std::thread::spawn(move || {
-            let result = if cloud {
-                network::discover_cloud_with_password(&address, &password)
-            } else {
-                network::discover_lan()
-            };
+            let result = network::discover_lan();
             let _ = send.send(result.map_err(Message::from));
         });
         self.scan = Some(Mutex::new(receive));
@@ -163,6 +183,12 @@ impl Menu {
     fn connect(&mut self) {
         if self.connecting {
             return;
+        }
+        if self.page == Page::Cloud {
+            if let Err(error) = self.resolve_invite() {
+                self.status = tr("menu.invite_invalid").arg("error", error);
+                return;
+            }
         }
         if self.page == Page::Cloud || (self.page == Page::Host && self.cloud_host) {
             match network::normalize_server(&self.server) {
@@ -207,6 +233,50 @@ impl Menu {
         };
         self.active = None;
     }
+
+    pub(crate) fn select_server(&mut self, server: &str, password: &str) {
+        if self.server != server {
+            self.room.clear();
+        }
+        self.server = server.into();
+        self.server_password = password.into();
+        self.rooms.clear();
+        self.scan = None;
+        self.room_page = 0;
+        self.active = None;
+        self.status.clear();
+        self.dirty = true;
+    }
+
+    pub(crate) fn join_room_code(&mut self, code: &str) {
+        self.room = code.into();
+        self.connect();
+    }
+
+    pub(crate) fn host_selected_club(&mut self) {
+        self.cloud_host = true;
+        self.go(Page::Host);
+    }
+
+    fn resolve_invite(&mut self) -> Result<(), String> {
+        let (server, room) = network::room_target(&self.server, &self.room)?;
+        if server != self.server {
+            *self.field_mut(Field::Server) = server;
+            self.lobby_error.clear();
+            self.room_page = 0;
+            self.dirty = true;
+        }
+        self.room = room;
+        Ok(())
+    }
+
+    fn preview_invite(&mut self) {
+        if self.active == Some(Field::Room) && self.room.contains("://") {
+            // Show the destination in the server field immediately after paste,
+            // before joining; never send the previous server's password there.
+            let _ = self.resolve_invite();
+        }
+    }
 }
 
 #[derive(Resource, Default)]
@@ -230,6 +300,7 @@ pub enum Action {
     JoinRoom(usize),
     NextRooms,
     Fishing(crate::fishing::Action),
+    Club(crate::clubs::Action),
 }
 #[derive(Component)]
 pub struct Root;
@@ -246,7 +317,7 @@ pub(crate) struct PlayOverlay;
 #[derive(Component)]
 pub struct RoomStatus;
 #[derive(Component)]
-pub struct BaseColor(Color);
+pub struct BaseColor(pub(crate) Color);
 
 pub(crate) const INK: Color = Color::srgb_u8(48, 76, 67);
 pub(crate) const GREEN: Color = Color::srgb_u8(64, 99, 80);
@@ -254,7 +325,8 @@ pub(crate) const CREAM: Color = Color::srgb_u8(247, 234, 206);
 pub(crate) const MUTED: Color = Color::srgb_u8(123, 133, 104);
 
 pub fn buttons(
-    settings: Res<crate::settings::Settings>,
+    mut settings: ResMut<crate::settings::Settings>,
+    mut clubs: ResMut<crate::clubs::Browser>,
     mut interactions: Query<
         (&Interaction, &Action, &mut BackgroundColor, &BaseColor),
         Changed<Interaction>,
@@ -263,6 +335,7 @@ pub fn buttons(
     session: Res<Session>,
     mut fishing: ResMut<crate::fishing::Fishing>,
     mouse: Res<ButtonInput<MouseButton>>,
+    touches: Res<Touches>,
 ) {
     if settings.blocks_input() {
         return;
@@ -305,7 +378,13 @@ pub fn buttons(
                     Err(_) => tr("menu.invite").arg("invite", &session.invite),
                 };
             }
-            Action::Refresh => menu.refresh_rooms(),
+            Action::Refresh => {
+                if menu.page == Page::Cloud {
+                    clubs.handle(crate::clubs::Action::Refresh, &mut menu, &mut settings);
+                } else {
+                    menu.refresh_rooms();
+                }
+            }
             Action::OfficialServer => {
                 menu.server = network::DEFAULT_SERVER.trim().into();
                 menu.server_password.clear();
@@ -314,7 +393,7 @@ pub fn buttons(
                 menu.dirty = true;
                 menu.active = None;
                 if menu.page == Page::Cloud {
-                    menu.refresh_rooms();
+                    clubs.handle(crate::clubs::Action::Official, &mut menu, &mut settings);
                 }
             }
             Action::JoinRoom(index) => {
@@ -330,6 +409,12 @@ pub fn buttons(
             Action::NextRooms => {
                 menu.room_page = (menu.room_page + 1) % menu.rooms.len().div_ceil(3).max(1);
                 menu.dirty = true;
+            }
+            Action::Club(action) => {
+                if mouse.just_pressed(MouseButton::Left) || touches.any_just_pressed() {
+                    clubs.handle(action, &mut menu, &mut settings);
+                    break;
+                }
             }
             Action::Fishing(action) => {
                 // Rebuilt shop buttons under a held mouse must not buy repeatedly.
@@ -438,6 +523,7 @@ pub fn keyboard(
                     );
                     menu.selected = selected;
                     menu.preedit.clear();
+                    menu.preview_invite();
                 }
             }
             Ime::Disabled { .. } => {
@@ -461,6 +547,11 @@ pub fn keyboard(
             if chat.open {
                 chat.open = false;
                 chat.preedit.clear();
+            } else if menu.club_editor.is_some() {
+                menu.club_editor = None;
+                menu.club_password.clear();
+                menu.active = None;
+                menu.dirty = true;
             } else if menu.page == Page::Playing && (fishing.modal() || fishing.indoors) {
                 fishing.command = Some(crate::fishing::Action::Close);
             } else if menu.active.is_some() {
@@ -498,6 +589,8 @@ pub fn keyboard(
                     chat.open = true;
                     chat.selected = false;
                 }
+            } else if menu.page == Page::Cloud && menu.club_editor.is_some() {
+                menu.club_submit = true;
             } else if menu.page == Page::Home {
                 menu.active = None;
             } else {
@@ -535,6 +628,7 @@ pub fn keyboard(
                 field_limit(field),
             );
             menu.selected = selected;
+            menu.preview_invite();
         } else if menu.page == Page::Home {
             match event.key_code {
                 KeyCode::Digit1 => menu.go(Page::Host),
@@ -559,7 +653,7 @@ pub fn keyboard(
 }
 
 pub fn discover(time: Res<Time>, mut elapsed: Local<f32>, mut menu: ResMut<Menu>) {
-    if !matches!(menu.page, Page::Lan | Page::Cloud) {
+    if menu.page != Page::Lan {
         *elapsed = 0.0;
         return;
     }
@@ -596,10 +690,11 @@ pub fn discover(time: Res<Time>, mut elapsed: Local<f32>, mut menu: ResMut<Menu>
 fn field_limit(field: Field) -> usize {
     match field {
         Field::Name => 12,
-        Field::Room => 8,
+        Field::Room => 280,
         Field::RoomName => 24,
+        Field::ClubAlias => 32,
         Field::Port => 5,
-        Field::ServerPassword => 128,
+        Field::ServerPassword | Field::ClubPassword => 128,
         _ => 200,
     }
 }
@@ -691,7 +786,7 @@ pub(crate) fn button(
     entity
 }
 
-fn field(
+pub(crate) fn field(
     commands: &mut Commands,
     parent: Entity,
     art: &Art,
@@ -722,7 +817,11 @@ fn field(
         entity,
         art,
         "",
-        if which == Field::Server { 16.0 } else { 24.0 },
+        if matches!(which, Field::Server | Field::ClubServer) {
+            16.0
+        } else {
+            24.0
+        },
         INK,
     );
     commands
@@ -736,14 +835,18 @@ pub fn render(
     mut menu: ResMut<Menu>,
     art: Res<Art>,
     roots: Query<Entity, With<Root>>,
+    clubs: Res<crate::clubs::Browser>,
+    scale: Res<UiScale>,
+    mut last_scale: Local<f32>,
 ) {
-    if !menu.dirty && !i18n.is_changed() {
+    if !menu.dirty && !i18n.is_changed() && *last_scale == scale.0 {
         return;
     }
     for entity in &roots {
         commands.entity(entity).despawn();
     }
     menu.dirty = false;
+    *last_scale = scale.0;
     if menu.page == Page::Editor {
         return;
     }
@@ -776,7 +879,7 @@ pub fn render(
             .spawn((
                 Node {
                     position_type: PositionType::Absolute,
-                    right: px(32),
+                    right: px(crate::settings::corner_space(scale.0)),
                     top: px(26),
                     width: px(410),
                     padding: UiRect::all(px(14)),
@@ -846,6 +949,10 @@ pub fn render(
     commands
         .entity(root)
         .insert(BackgroundColor(Color::srgba_u8(25, 51, 48, 32)));
+    if menu.page == Page::Cloud {
+        crate::clubs_ui::render(&mut commands, root, &art, &menu, &clubs, scale.0);
+        return;
+    }
     let panel = commands
         .spawn((
             Node {
@@ -1034,54 +1141,7 @@ pub fn render(
                 false,
             );
         }
-        Page::Cloud => {
-            label(
-                &mut commands,
-                panel,
-                &art,
-                tr("menu.cloud_title"),
-                24.0,
-                INK,
-            );
-            field(&mut commands, panel, &art, tr("menu.server"), Field::Server);
-            field(
-                &mut commands,
-                panel,
-                &art,
-                tr("menu.server_password"),
-                Field::ServerPassword,
-            );
-            field(
-                &mut commands,
-                panel,
-                &art,
-                tr("menu.room_code"),
-                Field::Room,
-            );
-            button(
-                &mut commands,
-                panel,
-                &art,
-                if menu.connecting {
-                    tr("menu.connecting")
-                } else {
-                    tr("menu.join")
-                },
-                "",
-                Action::Connect,
-                true,
-            );
-            button(
-                &mut commands,
-                panel,
-                &art,
-                tr("common.back"),
-                "",
-                Action::Back,
-                false,
-            );
-        }
-        Page::Playing | Page::Editor => {}
+        Page::Cloud | Page::Playing | Page::Editor => {}
     }
     let status = label(
         &mut commands,
@@ -1104,7 +1164,7 @@ pub fn render(
         })
         .id();
     commands.entity(root).add_child(caption);
-    if menu.page == Page::Cloud || (menu.page == Page::Host && menu.cloud_host) {
+    if menu.page == Page::Host && menu.cloud_host {
         button(
             &mut commands,
             caption,
@@ -1133,7 +1193,7 @@ pub fn render(
         if menu.page == Page::Cloud { 28.0 } else { 36.0 },
         CREAM,
     );
-    if matches!(menu.page, Page::Lan | Page::Cloud) {
+    if menu.page == Page::Lan {
         let lobby = commands
             .spawn((
                 Node {
@@ -1289,13 +1349,13 @@ pub fn refresh(
         let value: Message = if let Some(FieldValue(field)) = field {
             let raw = menu.field(*field);
             let masked = "*".repeat(raw.chars().count());
-            let value = if *field == Field::ServerPassword {
+            let value = if matches!(field, Field::ServerPassword | Field::ClubPassword) {
                 masked.as_str()
             } else {
                 raw
             };
             if menu.active == Some(*field) {
-                let preedit = if *field == Field::ServerPassword {
+                let preedit = if matches!(field, Field::ServerPassword | Field::ClubPassword) {
                     "*".repeat(menu.preedit.chars().count())
                 } else {
                     menu.preedit.clone()
@@ -1371,7 +1431,9 @@ mod tests {
             .init_resource::<Session>()
             .init_resource::<crate::settings::Settings>()
             .init_resource::<crate::fishing::Fishing>()
+            .init_resource::<crate::clubs::Browser>()
             .init_resource::<ButtonInput<MouseButton>>()
+            .init_resource::<Touches>()
             .add_systems(Update, buttons);
         let spawn = |world: &mut World| {
             world.spawn((
@@ -1433,6 +1495,37 @@ mod tests {
         *menu.field_mut(Field::Server) = "wss://new.example".into();
         assert!(menu.server_password.is_empty());
     }
+    #[test]
+    fn pasting_an_invite_shows_its_server_and_clears_the_previous_password() {
+        let mut menu = Menu {
+            page: Page::Cloud,
+            active: Some(Field::Room),
+            server: "wss://private.example".into(),
+            server_password: "private-password".into(),
+            room: "wss://friends.example/room/NIANNIAN".into(),
+            ..default()
+        };
+        menu.preview_invite();
+        assert_eq!(menu.server, "wss://friends.example");
+        assert_eq!(menu.room, "NIANNIAN");
+        assert!(menu.server_password.is_empty());
+        assert!(menu.request.is_none());
+        menu.connect();
+        assert!(
+            matches!(menu.request.take(), Some(Mode::JoinCloud { server, room })
+            if server == "wss://friends.example" && room == "NIANNIAN")
+        );
+
+        menu.server_password = "same-server-password".into();
+        menu.room = "wss://friends.example/room/ABCDEFGH".into();
+        menu.preview_invite();
+        assert_eq!(menu.server_password, "same-server-password");
+        menu.room = "wss://other.example/room/ABCDEFGH?password=secret".into();
+        menu.connect();
+        assert!(menu.request.is_none());
+        assert_eq!(menu.server, "wss://friends.example");
+    }
+
     #[test]
     fn text_input_preserves_unicode_and_replaces_selection() {
         let mut value = "你好".to_owned();

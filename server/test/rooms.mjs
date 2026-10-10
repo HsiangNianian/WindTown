@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 
 const base = (process.env.SERVER_URL || "ws://127.0.0.1:8787").replace(/\/$/, "").replace(/^http/, "ws");
+const guestBase = (process.env.GUEST_SERVER_URL || base).replace(/\/$/, "").replace(/^http/, "ws");
 const room = () => crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase();
 const sockets = [];
-async function join(code, name, create = false, title = "Sunset & Friends") {
-  const ws = new WebSocket(`${base}/room/${code}?name=${encodeURIComponent(name)}&create=${create ? 1 : 0}&room_name=${encodeURIComponent(title)}`);
+async function join(code, name, create = false, title = "Sunset & Friends", address = base) {
+  const ws = new WebSocket(`${address}/room/${code}?protocol=2&name=${encodeURIComponent(name)}&create=${create ? 1 : 0}&room_name=${encodeURIComponent(title)}`);
   sockets.push(ws);
   const messages = [];
   ws.addEventListener("message", (e) => { if (e.data !== "pong") messages.push(JSON.parse(e.data)); });
@@ -20,8 +21,11 @@ async function join(code, name, create = false, title = "Sunset & Friends") {
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Connection timeout")), 10000);
     ws.addEventListener("open", () => { clearTimeout(timer); resolve(); }, { once: true });
-    ws.addEventListener("error", () => { clearTimeout(timer); reject(new Error("Connection rejected")); }, { once: true });
+    ws.addEventListener("error", () => { clearTimeout(timer); reject(new Error(`Connection rejected: ${address}, room ${code}, create=${create}`)); }, { once: true });
   });
+  const { world } = await next("world");
+  assert.equal(world.format, 1);
+  ws.send(JSON.stringify({ type: "world_ready", revision: world.revision }));
   return { ws, next, messages, send: (data) => ws.send(JSON.stringify(data)) };
 }
 
@@ -30,7 +34,7 @@ try {
   const a = await join(code, "小风", true);
   const wa = await a.next("welcome");
   assert.equal(wa.players[0].name, "小风");
-  const b = await join(code, "小雨");
+  const b = await join(code, "小雨", false, "Sunset & Friends", guestBase);
   const wb = await b.next("welcome");
   assert.equal(wb.players.length, 2);
   const listing = await fetch(`${base.replace(/^ws/, "http")}/rooms`).then((r) => r.json());
@@ -55,7 +59,7 @@ try {
   assert.equal((await a.next("chat")).text, "你好，远方的朋友！");
   a.send({ type: "move", x: 9999999, y: -2, moving: false, facing: false });
   assert.equal((await b.next("moved")).player.x, 1428);
-  const c = await join(room(), "隔壁房间", true);
+  const c = await join("NIANNIAN", "隔壁房间");
   assert.equal((await c.next("welcome")).players.length, 1);
   a.send({ type: "move", x: 800, y: 0, moving: false, facing: false });
   await b.next("moved");
@@ -82,7 +86,7 @@ try {
   });
   invalid.send({ type: "move", x: 270, y: 0, moving: false, facing: false, indoors: "yes" });
   await invalidClosed;
-  console.log("PASS: lobby listing and cleanup, two clients, Unicode chat, movement, bounds, fishing and shop visibility, invalid activity, identity, room isolation, disconnect, missing rooms, oversize messages");
+  console.log(`PASS: ${base} -> ${guestBase}: maps, lobby listing and cleanup, two clients, Unicode chat, movement, bounds, fishing and shop visibility, invalid activity, identity, room isolation, disconnect, missing rooms, oversize messages`);
 } finally {
   for (const ws of sockets) if (ws.readyState < 2) ws.close();
 }
