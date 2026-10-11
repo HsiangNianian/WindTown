@@ -50,6 +50,9 @@ pub struct Actor {
     last_sent: (Vec2, bool, bool, String, bool),
 }
 
+#[derive(Component)]
+pub(crate) struct Shadow;
+
 impl Actor {
     pub(crate) fn teleport(&mut self, position: Vec2) {
         self.position = position;
@@ -257,6 +260,7 @@ pub fn spawn_actor(commands: &mut Commands, art: &Art, player: Player) {
         ))
         .with_children(|parent| {
             parent.spawn((
+                Shadow,
                 Sprite::from_image(art.shadow.clone()),
                 Transform::from_xyz(0.0, 1.0, -0.2),
             ));
@@ -470,12 +474,17 @@ pub fn walk(
 
 pub fn animate(
     time: Res<Time>,
-    mut actors: Query<(&mut Actor, &mut Sprite, &mut Transform)>,
+    maps: Res<crate::maps::Maps>,
+    mut actors: Query<(&mut Actor, &mut Sprite, &mut Transform, &Children)>,
     mut clouds: Query<(&Cloud, &mut Transform), Without<Actor>>,
     mut motes: Query<(&Mote, &mut Transform, &mut Sprite), (Without<Actor>, Without<Cloud>)>,
+    mut shadows: Query<
+        (&mut Transform, &mut Visibility),
+        (With<Shadow>, Without<Actor>, Without<Cloud>, Without<Mote>),
+    >,
 ) {
     let t = time.elapsed_secs();
-    for (mut actor, mut sprite, mut transform) in &mut actors {
+    for (mut actor, mut sprite, mut transform, children) in &mut actors {
         actor.phase += time.delta_secs() * if actor.player.moving { 9.0 } else { 1.3 };
         let frame = if actor.player.y > 1.0 {
             3
@@ -490,6 +499,32 @@ pub fn animate(
         sprite.flip_x = actor.player.facing;
         transform.translation.x = actor.position.x.round();
         transform.translation.y = actor.position.y.round();
+        let ground = maps
+            .world
+            .content
+            .manifest
+            .maps
+            .iter()
+            .find(|info| info.id == actor.player.map)
+            .and_then(|info| {
+                shadow_ground_y(
+                    actor.position,
+                    maps.by_id(&info.id)?,
+                    &maps.world.content,
+                    &info.path,
+                )
+            });
+        for child in children.iter() {
+            if let Ok((mut shadow, mut visibility)) = shadows.get_mut(child) {
+                if let Some(y) = ground {
+                    // Keep parenting for horizontal movement and cleanup; cancel the jump.
+                    shadow.translation.y = y.round() + 1.0 - transform.translation.y;
+                    *visibility = Visibility::Inherited;
+                } else {
+                    *visibility = Visibility::Hidden;
+                }
+            }
+        }
     }
     for (cloud, mut transform) in &mut clouds {
         transform.translation.x = (cloud.x + t * cloud.speed).rem_euclid(1700.0).round() - 80.0;
@@ -502,6 +537,34 @@ pub fn animate(
             .color
             .set_alpha(0.18 + (t * 0.8 + mote.phase).sin().max(0.0) * 0.4);
     }
+}
+
+fn shadow_ground_y(
+    position: Vec2,
+    map: &crate::maps::Map,
+    content: &yapshire_shared::content::Content,
+    path: &str,
+) -> Option<f32> {
+    // Match the feet's horizontal footprint and grounding tolerance in step().
+    let left = position.x - 6.0 + 0.01;
+    let right = position.x + 6.0 - 0.01;
+    let first_col = ((left / 16.0).floor() as i32).max(0);
+    let last_col = ((right / 16.0).floor() as i32).min(map.width as i32 - 1);
+    let first_row = ((map.origin_y() - position.y - 0.1) / 16.0).ceil().max(0.0) as i32;
+    let mut ground = None;
+    for row in first_row..map.height as i32 {
+        if (first_col..=last_col).any(|col| map.collision(content, path, col, row) != "none") {
+            ground = Some(map.origin_y() - row as f32 * 16.0);
+            break;
+        }
+    }
+    for object in map.objects().filter(|o| o.kind == "solid") {
+        let top = map.origin_y() - object.y;
+        if right > object.x && left < object.x + object.width && top <= position.y + 0.1 {
+            ground = Some(ground.map_or(top, |y| y.max(top)));
+        }
+    }
+    ground
 }
 
 pub fn follow_camera(
@@ -702,6 +765,127 @@ pub fn capture(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jumping_shadows_stay_on_the_ground_and_platforms() {
+        for (map_id, ground) in [("yapshire:town", 0.0), ("yapshire:tackle_shop", 32.0)] {
+            let mut maps = crate::maps::Maps::load(std::path::Path::new(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/assets"
+            )))
+            .unwrap();
+            if ground > 0.0 {
+                let platform = maps.world.content.gid("yapshire:deck/0_0").unwrap();
+                let map = maps.world.maps.get_mut(map_id).unwrap();
+                for col in 14..=18 {
+                    map.layers[2].data[11 * map.width as usize + col] = platform;
+                }
+            }
+            let world = maps.world.clone();
+            let map = &world.maps[map_id];
+            let path = &world
+                .content
+                .manifest
+                .maps
+                .iter()
+                .find(|m| m.id == map_id)
+                .unwrap()
+                .path;
+            let mut app = App::new();
+            app.add_plugins((MinimalPlugins, TransformPlugin))
+                .insert_resource(maps)
+                .add_systems(Update, animate);
+            let art = Art {
+                font: default(),
+                people: default(),
+                atlas: default(),
+                shadow: default(),
+                items: default(),
+                items_atlas: default(),
+                panel: default(),
+                slot: default(),
+                water: default(),
+                editor_icons: default(),
+            };
+            let player = Player {
+                id: 1,
+                name: "Shadow test".into(),
+                map: map_id.into(),
+                x: 244.0,
+                y: ground,
+                moving: false,
+                facing: false,
+                indoors: false,
+                fishing: false,
+            };
+            let mut queue = bevy::ecs::world::CommandQueue::default();
+            spawn_actor(&mut Commands::new(&mut queue, app.world()), &art, player);
+            queue.apply(app.world_mut());
+            let actor = app
+                .world_mut()
+                .query_filtered::<Entity, With<Actor>>()
+                .single(app.world())
+                .unwrap();
+            let shadow = app
+                .world_mut()
+                .query_filtered::<Entity, With<Shadow>>()
+                .single(app.world())
+                .unwrap();
+            let mut peak = ground;
+            for frame in 0..60 {
+                {
+                    let mut actor = app.world_mut().get_mut::<Actor>(actor).unwrap();
+                    let Actor {
+                        position,
+                        velocity_y,
+                        ..
+                    } = &mut *actor;
+                    step(
+                        position,
+                        velocity_y,
+                        1.0,
+                        false,
+                        frame == 0,
+                        1.0 / 60.0,
+                        map,
+                        &world.content,
+                        path,
+                    );
+                    actor.player.x = actor.position.x;
+                    actor.player.y = actor.position.y;
+                    peak = peak.max(actor.position.y);
+                }
+                app.update();
+                let actor_position = app
+                    .world()
+                    .get::<GlobalTransform>(actor)
+                    .unwrap()
+                    .translation();
+                let shadow_position = app
+                    .world()
+                    .get::<GlobalTransform>(shadow)
+                    .unwrap()
+                    .translation();
+                assert_eq!(shadow_position.x, actor_position.x);
+                assert_eq!(
+                    shadow_position.y,
+                    ground + 1.0,
+                    "Shadow must remain on its supporting surface"
+                );
+                assert_eq!(
+                    app.world().get::<Transform>(shadow).unwrap().scale,
+                    Vec3::ONE
+                );
+                assert_eq!(
+                    app.world().get::<Visibility>(shadow),
+                    Some(&Visibility::Inherited)
+                );
+            }
+            assert!(peak > ground + 30.0, "Exercise a complete jump");
+            assert_eq!(app.world().get::<Actor>(actor).unwrap().position.y, ground);
+        }
+    }
+
     #[test]
     fn wide_maps_do_not_expose_panorama_edges() {
         let backdrop = Backdrop {
